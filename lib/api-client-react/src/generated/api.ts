@@ -5,18 +5,27 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CreateMasteringJobBody,
+  ErrorResponse,
+  HealthStatus,
+  MasteringJob,
+  MasteringStats,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -92,6 +101,603 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns all mastering jobs in reverse chronological order
+ * @summary List mastering jobs
+ */
+export const getListMasteringJobsUrl = () => {
+  return `/api/mastering/jobs`;
+};
+
+export const listMasteringJobs = async (
+  options?: RequestInit,
+): Promise<MasteringJob[]> => {
+  return customFetch<MasteringJob[]>(getListMasteringJobsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListMasteringJobsQueryKey = () => {
+  return [`/api/mastering/jobs`] as const;
+};
+
+export const getListMasteringJobsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMasteringJobs>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMasteringJobs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMasteringJobsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMasteringJobs>>
+  > = ({ signal }) => listMasteringJobs({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMasteringJobs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListMasteringJobsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMasteringJobs>>
+>;
+export type ListMasteringJobsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List mastering jobs
+ */
+
+export function useListMasteringJobs<
+  TData = Awaited<ReturnType<typeof listMasteringJobs>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listMasteringJobs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListMasteringJobsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Creates a new mastering job and starts processing
+ * @summary Create a mastering job
+ */
+export const getCreateMasteringJobUrl = () => {
+  return `/api/mastering/jobs`;
+};
+
+export const createMasteringJob = async (
+  createMasteringJobBody: CreateMasteringJobBody,
+  options?: RequestInit,
+): Promise<MasteringJob> => {
+  const formData = new FormData();
+  formData.append(`audio`, createMasteringJobBody.audio);
+  formData.append(`preset`, createMasteringJobBody.preset);
+  if (
+    createMasteringJobBody.targetLufs !== undefined &&
+    createMasteringJobBody.targetLufs !== null
+  ) {
+    formData.append(`targetLufs`, createMasteringJobBody.targetLufs.toString());
+  }
+
+  return customFetch<MasteringJob>(getCreateMasteringJobUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getCreateMasteringJobMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMasteringJob>>,
+    TError,
+    { data: BodyType<CreateMasteringJobBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMasteringJob>>,
+  TError,
+  { data: BodyType<CreateMasteringJobBody> },
+  TContext
+> => {
+  const mutationKey = ["createMasteringJob"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMasteringJob>>,
+    { data: BodyType<CreateMasteringJobBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMasteringJob(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMasteringJobMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createMasteringJob>>
+>;
+export type CreateMasteringJobMutationBody = BodyType<CreateMasteringJobBody>;
+export type CreateMasteringJobMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a mastering job
+ */
+export const useCreateMasteringJob = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMasteringJob>>,
+    TError,
+    { data: BodyType<CreateMasteringJobBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createMasteringJob>>,
+  TError,
+  { data: BodyType<CreateMasteringJobBody> },
+  TContext
+> => {
+  return useMutation(getCreateMasteringJobMutationOptions(options));
+};
+
+/**
+ * Returns a single mastering job by ID
+ * @summary Get a mastering job
+ */
+export const getGetMasteringJobUrl = (id: number) => {
+  return `/api/mastering/jobs/${id}`;
+};
+
+export const getMasteringJob = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MasteringJob> => {
+  return customFetch<MasteringJob>(getGetMasteringJobUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMasteringJobQueryKey = (id: number) => {
+  return [`/api/mastering/jobs/${id}`] as const;
+};
+
+export const getGetMasteringJobQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMasteringJob>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMasteringJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMasteringJobQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMasteringJob>>> = ({
+    signal,
+  }) => getMasteringJob(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMasteringJob>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMasteringJobQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMasteringJob>>
+>;
+export type GetMasteringJobQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a mastering job
+ */
+
+export function useGetMasteringJob<
+  TData = Awaited<ReturnType<typeof getMasteringJob>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getMasteringJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMasteringJobQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Deletes a mastering job and its associated files
+ * @summary Delete a mastering job
+ */
+export const getDeleteMasteringJobUrl = (id: number) => {
+  return `/api/mastering/jobs/${id}`;
+};
+
+export const deleteMasteringJob = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteMasteringJobUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteMasteringJobMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMasteringJob>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteMasteringJob>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteMasteringJob"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteMasteringJob>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteMasteringJob(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteMasteringJobMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteMasteringJob>>
+>;
+
+export type DeleteMasteringJobMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a mastering job
+ */
+export const useDeleteMasteringJob = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMasteringJob>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteMasteringJob>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteMasteringJobMutationOptions(options));
+};
+
+/**
+ * Returns overall mastering statistics for the dashboard
+ * @summary Get mastering statistics
+ */
+export const getGetMasteringStatsUrl = () => {
+  return `/api/mastering/stats`;
+};
+
+export const getMasteringStats = async (
+  options?: RequestInit,
+): Promise<MasteringStats> => {
+  return customFetch<MasteringStats>(getGetMasteringStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMasteringStatsQueryKey = () => {
+  return [`/api/mastering/stats`] as const;
+};
+
+export const getGetMasteringStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMasteringStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMasteringStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMasteringStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMasteringStats>>
+  > = ({ signal }) => getMasteringStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMasteringStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMasteringStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMasteringStats>>
+>;
+export type GetMasteringStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get mastering statistics
+ */
+
+export function useGetMasteringStats<
+  TData = Awaited<ReturnType<typeof getMasteringStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMasteringStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMasteringStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the original uploaded audio file
+ * @summary Stream original audio file
+ */
+export const getGetInputFileUrl = (id: number) => {
+  return `/api/mastering/files/${id}/input`;
+};
+
+export const getInputFile = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetInputFileUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInputFileQueryKey = (id: number) => {
+  return [`/api/mastering/files/${id}/input`] as const;
+};
+
+export const getGetInputFileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInputFile>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInputFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetInputFileQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getInputFile>>> = ({
+    signal,
+  }) => getInputFile(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInputFile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInputFileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInputFile>>
+>;
+export type GetInputFileQueryError = ErrorType<void>;
+
+/**
+ * @summary Stream original audio file
+ */
+
+export function useGetInputFile<
+  TData = Awaited<ReturnType<typeof getInputFile>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInputFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInputFileQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns the mastered audio file
+ * @summary Stream mastered audio file
+ */
+export const getGetOutputFileUrl = (id: number) => {
+  return `/api/mastering/files/${id}/output`;
+};
+
+export const getOutputFile = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetOutputFileUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOutputFileQueryKey = (id: number) => {
+  return [`/api/mastering/files/${id}/output`] as const;
+};
+
+export const getGetOutputFileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOutputFile>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOutputFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOutputFileQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getOutputFile>>> = ({
+    signal,
+  }) => getOutputFile(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOutputFile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOutputFileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOutputFile>>
+>;
+export type GetOutputFileQueryError = ErrorType<void>;
+
+/**
+ * @summary Stream mastered audio file
+ */
+
+export function useGetOutputFile<
+  TData = Awaited<ReturnType<typeof getOutputFile>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOutputFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOutputFileQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

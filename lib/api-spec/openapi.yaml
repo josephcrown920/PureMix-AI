@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: mastering
+    description: Audio mastering operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,170 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /mastering/jobs:
+    get:
+      operationId: listMasteringJobs
+      tags: [mastering]
+      summary: List mastering jobs
+      description: Returns all mastering jobs in reverse chronological order
+      responses:
+        "200":
+          description: List of mastering jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MasteringJob"
+
+    post:
+      operationId: createMasteringJob
+      tags: [mastering]
+      summary: Create a mastering job
+      description: Creates a new mastering job and starts processing
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+                - preset
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: The audio file to master (MP3, WAV, FLAC)
+                preset:
+                  type: string
+                  enum: [streaming, club, warm_vinyl, broadcast, custom]
+                  description: Mastering style preset
+                targetLufs:
+                  type: ["number", "null"]
+                  description: Target loudness in LUFS (-14 is streaming standard)
+      responses:
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasteringJob"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /mastering/jobs/{id}:
+    get:
+      operationId: getMasteringJob
+      tags: [mastering]
+      summary: Get a mastering job
+      description: Returns a single mastering job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Mastering job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasteringJob"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteMasteringJob
+      tags: [mastering]
+      summary: Delete a mastering job
+      description: Deletes a mastering job and its associated files
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /mastering/stats:
+    get:
+      operationId: getMasteringStats
+      tags: [mastering]
+      summary: Get mastering statistics
+      description: Returns overall mastering statistics for the dashboard
+      responses:
+        "200":
+          description: Statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasteringStats"
+
+  /mastering/files/{id}/input:
+    get:
+      operationId: getInputFile
+      tags: [mastering]
+      summary: Stream original audio file
+      description: Returns the original uploaded audio file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audio file
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found
+
+  /mastering/files/{id}/output:
+    get:
+      operationId: getOutputFile
+      tags: [mastering]
+      summary: Stream mastered audio file
+      description: Returns the mastered audio file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Mastered audio file
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +200,76 @@ components:
       required:
         - status
 
+    MasteringJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        originalFilename:
+          type: string
+        preset:
+          type: string
+          enum: [streaming, club, warm_vinyl, broadcast, custom]
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        progress:
+          type: integer
+          description: Processing progress percentage (0-100)
+        targetLufs:
+          type: ["number", "null"]
+        measuredInputLufs:
+          type: ["number", "null"]
+        measuredOutputLufs:
+          type: ["number", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - filename
+        - originalFilename
+        - preset
+        - status
+        - progress
+        - targetLufs
+        - measuredInputLufs
+        - measuredOutputLufs
+        - errorMessage
+        - createdAt
+        - completedAt
+
+    MasteringStats:
+      type: object
+      properties:
+        totalJobs:
+          type: integer
+        completedJobs:
+          type: integer
+        failedJobs:
+          type: integer
+        processingJobs:
+          type: integer
+        avgProcessingTimeMs:
+          type: ["number", "null"]
+      required:
+        - totalJobs
+        - completedJobs
+        - failedJobs
+        - processingJobs
+        - avgProcessingTimeMs
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

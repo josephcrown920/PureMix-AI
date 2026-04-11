@@ -14,3 +14,101 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns all mastering jobs in reverse chronological order
+ * @summary List mastering jobs
+ */
+export const ListMasteringJobsResponseItem = zod.object({
+  id: zod.number(),
+  filename: zod.string(),
+  originalFilename: zod.string(),
+  preset: zod.enum(["streaming", "club", "warm_vinyl", "broadcast", "custom"]),
+  status: zod.enum(["pending", "processing", "completed", "failed"]),
+  progress: zod.number().describe("Processing progress percentage (0-100)"),
+  targetLufs: zod.number().nullable(),
+  measuredInputLufs: zod.number().nullable(),
+  measuredOutputLufs: zod.number().nullable(),
+  errorMessage: zod.string().nullable(),
+  createdAt: zod.coerce.date(),
+  completedAt: zod.coerce.date().nullable(),
+});
+export const ListMasteringJobsResponse = zod.array(
+  ListMasteringJobsResponseItem,
+);
+
+/**
+ * Creates a new mastering job and starts processing
+ * @summary Create a mastering job
+ */
+export const CreateMasteringJobBody = zod.object({
+  audio: zod
+    .instanceof(File)
+    .describe("The audio file to master (MP3, WAV, FLAC)"),
+  preset: zod
+    .enum(["streaming", "club", "warm_vinyl", "broadcast", "custom"])
+    .describe("Mastering style preset"),
+  targetLufs: zod
+    .number()
+    .nullish()
+    .describe("Target loudness in LUFS (-14 is streaming standard)"),
+});
+
+/**
+ * Returns a single mastering job by ID
+ * @summary Get a mastering job
+ */
+export const GetMasteringJobParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetMasteringJobResponse = zod.object({
+  id: zod.number(),
+  filename: zod.string(),
+  originalFilename: zod.string(),
+  preset: zod.enum(["streaming", "club", "warm_vinyl", "broadcast", "custom"]),
+  status: zod.enum(["pending", "processing", "completed", "failed"]),
+  progress: zod.number().describe("Processing progress percentage (0-100)"),
+  targetLufs: zod.number().nullable(),
+  measuredInputLufs: zod.number().nullable(),
+  measuredOutputLufs: zod.number().nullable(),
+  errorMessage: zod.string().nullable(),
+  createdAt: zod.coerce.date(),
+  completedAt: zod.coerce.date().nullable(),
+});
+
+/**
+ * Deletes a mastering job and its associated files
+ * @summary Delete a mastering job
+ */
+export const DeleteMasteringJobParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * Returns overall mastering statistics for the dashboard
+ * @summary Get mastering statistics
+ */
+export const GetMasteringStatsResponse = zod.object({
+  totalJobs: zod.number(),
+  completedJobs: zod.number(),
+  failedJobs: zod.number(),
+  processingJobs: zod.number(),
+  avgProcessingTimeMs: zod.number().nullable(),
+});
+
+/**
+ * Returns the original uploaded audio file
+ * @summary Stream original audio file
+ */
+export const GetInputFileParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * Returns the mastered audio file
+ * @summary Stream mastered audio file
+ */
+export const GetOutputFileParams = zod.object({
+  id: zod.coerce.number(),
+});

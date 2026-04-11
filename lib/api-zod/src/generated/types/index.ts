@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./createMasteringJobBody";
+export * from "./createMasteringJobBodyPreset";
+export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./masteringJob";
+export * from "./masteringJobPreset";
+export * from "./masteringJobStatus";
+export * from "./masteringStats";

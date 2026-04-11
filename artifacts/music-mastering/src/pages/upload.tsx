@@ -1,0 +1,317 @@
+import React, { useState, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
+import { UploadCloud, FileAudio, Settings2, Loader2, Music, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useCreateMasteringJob, useGetMasteringStats } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
+import { formatTime, PRESET_LABELS } from "@/lib/format";
+type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
+
+export function UploadPage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [dragActive, setDragActive] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preset, setPreset] = useState<CreateMasteringJobBodyPreset>("streaming");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const createJob = useCreateMasteringJob();
+  const { data: stats } = useGetMasteringStats();
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      if (isValidAudioFile(droppedFile)) {
+        setFile(droppedFile);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an MP3, WAV, or FLAC file.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [toast]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (isValidAudioFile(selectedFile)) {
+        setFile(selectedFile);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an MP3, WAV, or FLAC file.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [toast]);
+
+  const isValidAudioFile = (file: File) => {
+    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/x-wav'];
+    const validExtensions = ['.mp3', '.wav', '.flac'];
+    const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    return validTypes.includes(file.type) || validExtensions.includes(extension);
+  };
+
+  const handleClearFile = () => {
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!file) return;
+
+    try {
+      const result = await createJob.mutateAsync({
+        data: {
+          audio: file,
+          preset: preset
+        }
+      });
+      
+      toast({
+        title: "Upload complete",
+        description: "Your track is now being processed.",
+      });
+      
+      setLocation(`/jobs/${result.id}`);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your file. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-4 py-8 md:py-12 max-w-5xl">
+      {/* Stats Dashboard Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10" data-testid="dashboard-stats">
+        <Card className="bg-card/40 border-border/40 backdrop-blur-sm">
+          <CardContent className="p-4 flex flex-col gap-1">
+            <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Music size={14} className="text-primary" /> Total Mastered
+            </div>
+            <div className="text-2xl font-bold font-mono text-shadow-glow" data-testid="stat-total-jobs">
+              {stats?.totalJobs ?? '--'}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-card/40 border-border/40 backdrop-blur-sm">
+          <CardContent className="p-4 flex flex-col gap-1">
+            <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CheckCircle2 size={14} className="text-emerald-500" /> Completed
+            </div>
+            <div className="text-2xl font-bold font-mono" data-testid="stat-completed-jobs">
+              {stats?.completedJobs ?? '--'}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-card/40 border-border/40 backdrop-blur-sm">
+          <CardContent className="p-4 flex flex-col gap-1">
+            <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Loader2 size={14} className="text-blue-500" /> Processing
+            </div>
+            <div className="text-2xl font-bold font-mono" data-testid="stat-processing-jobs">
+              {stats?.processingJobs ?? '--'}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-card/40 border-border/40 backdrop-blur-sm">
+          <CardContent className="p-4 flex flex-col gap-1">
+            <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Sparkles size={14} className="text-amber-500" /> Avg Time
+            </div>
+            <div className="text-2xl font-bold font-mono" data-testid="stat-avg-time">
+              {formatTime(stats?.avgProcessingTimeMs)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid md:grid-cols-[1fr_350px] gap-8">
+        <div className="flex flex-col gap-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">New Session</h1>
+            <p className="text-muted-foreground">Upload your mix to get started. High quality WAV or FLAC recommended.</p>
+          </div>
+
+          <Card className={`border-2 border-dashed transition-all duration-200 overflow-hidden ${
+            dragActive ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border/60 bg-card/20 hover:border-border hover:bg-card/40'
+          }`}>
+            <CardContent className="p-0">
+              <div 
+                className="relative flex flex-col items-center justify-center p-12 text-center min-h-[300px]"
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => !file && fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                data-testid="upload-dropzone"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".mp3,.wav,.flac,audio/mpeg,audio/wav,audio/flac"
+                  onChange={handleChange}
+                  data-testid="input-file"
+                />
+
+                {file ? (
+                  <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+                    <div className="p-4 rounded-full bg-primary/20 text-primary">
+                      <FileAudio size={48} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium font-mono">{file.name}</h3>
+                      <p className="text-sm text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearFile();
+                      }}
+                      className="mt-2 border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                      data-testid="btn-clear-file"
+                    >
+                      Remove File
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 pointer-events-none">
+                    <div className={`p-4 rounded-full transition-colors duration-300 ${dragActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      <UploadCloud size={48} strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium">Click or drag & drop</h3>
+                      <p className="text-sm text-muted-foreground mt-1">MP3, WAV, or FLAC up to 100MB</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex flex-col">
+          <Card className="flex-1 bg-card/60 backdrop-blur border-border/40">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings2 size={18} className="text-primary" />
+                Mastering Preset
+              </CardTitle>
+              <CardDescription>
+                Select the target platform standard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup 
+                value={preset} 
+                onValueChange={(val) => setPreset(val as CreateMasteringJobBodyPreset)}
+                className="gap-3"
+                data-testid="preset-selection"
+              >
+                <div className="relative">
+                  <RadioGroupItem value="streaming" id="streaming" className="peer sr-only" />
+                  <Label
+                    htmlFor="streaming"
+                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
+                  >
+                    <span className="font-semibold text-base">{PRESET_LABELS["streaming"]}</span>
+                    <span className="text-xs text-muted-foreground font-normal">Balanced dynamics, perfect for Spotify, Apple Music.</span>
+                  </Label>
+                </div>
+                
+                <div className="relative">
+                  <RadioGroupItem value="club" id="club" className="peer sr-only" />
+                  <Label
+                    htmlFor="club"
+                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
+                  >
+                    <span className="font-semibold text-base">{PRESET_LABELS["club"]}</span>
+                    <span className="text-xs text-muted-foreground font-normal">Heavy limiting, maximized perceived loudness.</span>
+                  </Label>
+                </div>
+                
+                <div className="relative">
+                  <RadioGroupItem value="warm_vinyl" id="warm_vinyl" className="peer sr-only" />
+                  <Label
+                    htmlFor="warm_vinyl"
+                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
+                  >
+                    <span className="font-semibold text-base">{PRESET_LABELS["warm_vinyl"]}</span>
+                    <span className="text-xs text-muted-foreground font-normal">Analog warmth, preserved transients, richer low-end.</span>
+                  </Label>
+                </div>
+                
+                <div className="relative">
+                  <RadioGroupItem value="broadcast" id="broadcast" className="peer sr-only" />
+                  <Label
+                    htmlFor="broadcast"
+                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
+                  >
+                    <span className="font-semibold text-base">{PRESET_LABELS["broadcast"]}</span>
+                    <span className="text-xs text-muted-foreground font-normal">Strict EBU R128 compliance for TV and radio.</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </CardContent>
+            <CardFooter className="pt-2 pb-6 px-6">
+              <Button 
+                onClick={handleSubmit} 
+                disabled={!file || createJob.isPending} 
+                className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-shadow"
+                data-testid="btn-submit-mastering"
+              >
+                {createJob.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Initializing Studio...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Master Track
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

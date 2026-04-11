@@ -8,3 +8,84 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type MasteringJobPreset =
+  (typeof MasteringJobPreset)[keyof typeof MasteringJobPreset];
+
+export const MasteringJobPreset = {
+  streaming: "streaming",
+  club: "club",
+  warm_vinyl: "warm_vinyl",
+  broadcast: "broadcast",
+  custom: "custom",
+} as const;
+
+export type MasteringJobStatus =
+  (typeof MasteringJobStatus)[keyof typeof MasteringJobStatus];
+
+export const MasteringJobStatus = {
+  pending: "pending",
+  processing: "processing",
+  completed: "completed",
+  failed: "failed",
+} as const;
+
+export interface MasteringJob {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  preset: MasteringJobPreset;
+  status: MasteringJobStatus;
+  /** Processing progress percentage (0-100) */
+  progress: number;
+  /** @nullable */
+  targetLufs: number | null;
+  /** @nullable */
+  measuredInputLufs: number | null;
+  /** @nullable */
+  measuredOutputLufs: number | null;
+  /** @nullable */
+  errorMessage: string | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export interface MasteringStats {
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  processingJobs: number;
+  /** @nullable */
+  avgProcessingTimeMs: number | null;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
+
+/**
+ * Mastering style preset
+ */
+export type CreateMasteringJobBodyPreset =
+  (typeof CreateMasteringJobBodyPreset)[keyof typeof CreateMasteringJobBodyPreset];
+
+export const CreateMasteringJobBodyPreset = {
+  streaming: "streaming",
+  club: "club",
+  warm_vinyl: "warm_vinyl",
+  broadcast: "broadcast",
+  custom: "custom",
+} as const;
+
+export type CreateMasteringJobBody = {
+  /** The audio file to master (MP3, WAV, FLAC) */
+  audio: Blob;
+  /** Mastering style preset */
+  preset: CreateMasteringJobBodyPreset;
+  /**
+   * Target loudness in LUFS (-14 is streaming standard)
+   * @nullable
+   */
+  targetLufs?: number | null;
+};

@@ -1,0 +1,12 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.4.4",
+    "pydub>=0.25.1",
+    "pyloudnorm>=0.2.0",
+    "scipy>=1.17.1",
+    "soundfile>=0.13.1",
+]
