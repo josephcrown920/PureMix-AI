@@ -25,8 +25,28 @@ def process_audio(input_path: str, output_path: str, preset: str, target_lufs: f
     import pyloudnorm as pyln
     from scipy import signal
 
-    # Load audio
-    data, rate = sf.read(input_path)
+    # Determine input format; soundfile cannot read MP3, so convert via pydub first
+    ext = os.path.splitext(input_path)[1].lower()
+    if ext in ('.mp3', '.m4a', '.aac', '.ogg'):
+        from pydub import AudioSegment
+        audio_seg = AudioSegment.from_file(input_path)
+        tmp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        tmp_wav.close()
+        audio_seg.export(tmp_wav.name, format='wav')
+        read_path = tmp_wav.name
+    else:
+        read_path = input_path
+        tmp_wav = None
+
+    try:
+        # Load audio
+        data, rate = sf.read(read_path)
+    finally:
+        if tmp_wav is not None:
+            try:
+                os.unlink(tmp_wav.name)
+            except OSError:
+                pass
     
     # Ensure stereo
     if data.ndim == 1:

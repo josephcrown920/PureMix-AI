@@ -35,7 +35,8 @@ export async function processMasteringJob(jobId: number): Promise<void> {
       .set({ status: "processing", progress: 5, processingStartedAt: new Date() })
       .where(eq(masteringJobsTable.id, jobId));
 
-    const outputFilename = `mastered_${job.filename}`;
+    const baseName = job.filename.replace(/\.[^.]+$/, "");
+    const outputFilename = `mastered_${baseName}.wav`;
     const outputDir = path.join(__dirname, "..", "..", "uploads", "output");
     const outputPath = path.join(outputDir, outputFilename);
 
