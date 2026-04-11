@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import { PRESET_LABELS } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WaveformPlayer } from "@/components/WaveformPlayer";
 
 const PROCESSING_STAGES = [
   { threshold: 0, label: "Initializing engine...", icon: Disc },
@@ -34,7 +35,7 @@ export function JobPage() {
     }
   });
 
-  const [activePlayer, setActivePlayer] = useState<"original" | "mastered">("mastered");
+  const [activeTab, setActiveTab] = useState<"sidebyside" | "original" | "mastered">("sidebyside");
 
   if (isLoading && !job) {
     return (
@@ -94,7 +95,6 @@ export function JobPage() {
       {isProcessing && (
         <Card className="border-primary/20 bg-card shadow-[0_0_30px_rgba(245,158,11,0.05)] overflow-hidden">
           <CardContent className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[400px] relative">
-            {/* Visualizer background effect */}
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
               <div className="w-[120%] h-64 bg-primary/20 blur-3xl rounded-[100%] animate-pulse-slow"></div>
             </div>
@@ -176,49 +176,93 @@ export function JobPage() {
             </CardContent>
           </Card>
 
+          {/* A/B Waveform Comparison */}
           <Card className="border-border bg-card">
             <CardHeader className="pb-4 border-b border-border/50">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">A/B Comparison</CardTitle>
-                <div className="flex items-center p-1 bg-background rounded-md border border-border">
-                  <button 
-                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activePlayer === "original" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setActivePlayer("original")}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <AudioLines className="h-5 w-5 text-primary" />
+                  A/B Waveform Comparison
+                </CardTitle>
+                <div className="flex items-center p-1 bg-background rounded-md border border-border text-xs font-medium">
+                  <button
+                    className={`px-3 py-1 rounded transition-colors ${activeTab === "sidebyside" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setActiveTab("sidebyside")}
+                    data-testid="tab-sidebyside"
+                  >
+                    Side by Side
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded transition-colors ${activeTab === "original" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setActiveTab("original")}
                     data-testid="tab-original"
                   >
                     Original
                   </button>
-                  <button 
-                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activePlayer === "mastered" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setActivePlayer("mastered")}
+                  <button
+                    className={`px-3 py-1 rounded transition-colors ${activeTab === "mastered" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setActiveTab("mastered")}
                     data-testid="tab-mastered"
                   >
-                    Mastered
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> Mastered
+                    </span>
                   </button>
                 </div>
               </div>
             </CardHeader>
+
             <CardContent className="p-6">
-              <div className={`transition-all duration-300 ${activePlayer === "original" ? "opacity-100 block" : "opacity-0 hidden"}`}>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Original Mix</span>
+              {activeTab === "sidebyside" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="waveform-sidebyside">
+                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                    <WaveformPlayer
+                      url={originalUrl}
+                      label="Original Mix"
+                      color="#4b5563"
+                      progressColor="#9ca3af"
+                      data-testid="waveform-original"
+                    />
+                  </div>
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
+                    <WaveformPlayer
+                      url={masteredUrl}
+                      label="AI Master"
+                      color="#92400e"
+                      progressColor="#f59e0b"
+                      data-testid="waveform-mastered"
+                    />
+                  </div>
                 </div>
-                <div className="bg-background rounded-lg border border-border p-4">
-                  {/* Using basic audio tag as requested */}
-                  <audio controls className="w-full h-12" src={originalUrl} data-testid="audio-original" />
+              )}
+
+              {activeTab === "original" && (
+                <div className="rounded-lg border border-border bg-background/50 p-4" data-testid="waveform-original-solo">
+                  <WaveformPlayer
+                    url={originalUrl}
+                    label="Original Mix"
+                    color="#4b5563"
+                    progressColor="#9ca3af"
+                    data-testid="waveform-original"
+                  />
                 </div>
-              </div>
-              
-              <div className={`transition-all duration-300 ${activePlayer === "mastered" ? "opacity-100 block" : "opacity-0 hidden"}`}>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium text-primary flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" /> AI Master
-                  </span>
+              )}
+
+              {activeTab === "mastered" && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]" data-testid="waveform-mastered-solo">
+                  <WaveformPlayer
+                    url={masteredUrl}
+                    label="AI Master"
+                    color="#92400e"
+                    progressColor="#f59e0b"
+                    data-testid="waveform-mastered"
+                  />
                 </div>
-                <div className="bg-primary/5 rounded-lg border border-primary/30 p-4 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                  <audio autoPlay controls className="w-full h-12" src={masteredUrl} data-testid="audio-mastered" />
-                </div>
-              </div>
+              )}
+
+              <p className="text-xs text-muted-foreground/60 mt-4 text-center">
+                Click on the waveform to seek • Play both tracks to compare the difference
+              </p>
             </CardContent>
           </Card>
         </div>
