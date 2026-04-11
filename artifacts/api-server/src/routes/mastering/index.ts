@@ -1,9 +1,9 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import { db, masteringJobsTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { processMasteringJob } from "../../lib/masteringProcessor";
 import {
@@ -12,6 +12,7 @@ import {
   GetInputFileParams,
   GetOutputFileParams,
 } from "@workspace/api-zod";
+import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -57,11 +58,30 @@ const PRESET_LUFS: Record<string, number> = {
   custom: -14,
 };
 
+const SESSION_COOKIE = "masterai_session";
+const SESSION_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+function getOrCreateSessionId(req: Request, res: Response): string {
+  const existing = req.cookies?.[SESSION_COOKIE] as string | undefined;
+  if (existing && existing.length > 0) return existing;
+
+  const sessionId = uuidv4();
+  res.cookie(SESSION_COOKIE, sessionId, {
+    httpOnly: true,
+    maxAge: SESSION_MAX_AGE,
+    sameSite: "lax",
+  });
+  return sessionId;
+}
+
 // GET /mastering/jobs
 router.get("/mastering/jobs", async (req, res): Promise<void> => {
+  const sessionId = getOrCreateSessionId(req, res);
+
   const jobs = await db
     .select()
     .from(masteringJobsTable)
+    .where(eq(masteringJobsTable.sessionId, sessionId))
     .orderBy(desc(masteringJobsTable.createdAt));
 
   res.json(
@@ -92,6 +112,8 @@ router.post(
       return;
     }
 
+    const sessionId = getOrCreateSessionId(req, res);
+
     const preset = req.body.preset as string;
     if (!VALID_PRESETS.includes(preset as (typeof VALID_PRESETS)[number])) {
       res.status(400).json({ error: `Invalid preset. Must be one of: ${VALID_PRESETS.join(", ")}` });
@@ -112,6 +134,7 @@ router.post(
     const [job] = await db
       .insert(masteringJobsTable)
       .values({
+        sessionId,
         filename: req.file.filename,
         originalFilename: req.file.originalname,
         inputPath: req.file.path,
@@ -152,10 +175,17 @@ router.get("/mastering/jobs/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const sessionId = getOrCreateSessionId(req, res);
+
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.id, params.data.id));
+    .where(
+      and(
+        eq(masteringJobsTable.id, params.data.id),
+        eq(masteringJobsTable.sessionId, sessionId)
+      )
+    );
 
   if (!job) {
     res.status(404).json({ error: "Mastering job not found" });
@@ -186,10 +216,17 @@ router.delete("/mastering/jobs/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const sessionId = getOrCreateSessionId(req, res);
+
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.id, params.data.id));
+    .where(
+      and(
+        eq(masteringJobsTable.id, params.data.id),
+        eq(masteringJobsTable.sessionId, sessionId)
+      )
+    );
 
   if (!job) {
     res.status(404).json({ error: "Mastering job not found" });
@@ -204,13 +241,22 @@ router.delete("/mastering/jobs/:id", async (req, res): Promise<void> => {
     fs.unlinkSync(job.outputPath);
   }
 
-  await db.delete(masteringJobsTable).where(eq(masteringJobsTable.id, params.data.id));
+  await db
+    .delete(masteringJobsTable)
+    .where(
+      and(
+        eq(masteringJobsTable.id, params.data.id),
+        eq(masteringJobsTable.sessionId, sessionId)
+      )
+    );
 
   res.sendStatus(204);
 });
 
 // GET /mastering/stats
-router.get("/mastering/stats", async (_req, res): Promise<void> => {
+router.get("/mastering/stats", async (req, res): Promise<void> => {
+  const sessionId = getOrCreateSessionId(req, res);
+
   const [stats] = await db
     .select({
       totalJobs: sql<number>`count(*)::int`,
@@ -219,7 +265,8 @@ router.get("/mastering/stats", async (_req, res): Promise<void> => {
       processingJobs: sql<number>`count(*) filter (where status in ('pending', 'processing'))::int`,
       avgProcessingTimeMs: sql<number | null>`avg(extract(epoch from (completed_at - processing_started_at)) * 1000) filter (where status = 'completed' and processing_started_at is not null)`,
     })
-    .from(masteringJobsTable);
+    .from(masteringJobsTable)
+    .where(eq(masteringJobsTable.sessionId, sessionId));
 
   res.json({
     totalJobs: stats.totalJobs ?? 0,
@@ -238,10 +285,17 @@ router.get("/mastering/files/:id/input", async (req, res): Promise<void> => {
     return;
   }
 
+  const sessionId = getOrCreateSessionId(req, res);
+
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.id, params.data.id));
+    .where(
+      and(
+        eq(masteringJobsTable.id, params.data.id),
+        eq(masteringJobsTable.sessionId, sessionId)
+      )
+    );
 
   if (!job || !job.inputPath) {
     res.status(404).json({ error: "File not found" });
@@ -282,10 +336,17 @@ router.get("/mastering/files/:id/output", async (req, res): Promise<void> => {
     return;
   }
 
+  const sessionId = getOrCreateSessionId(req, res);
+
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.id, params.data.id));
+    .where(
+      and(
+        eq(masteringJobsTable.id, params.data.id),
+        eq(masteringJobsTable.sessionId, sessionId)
+      )
+    );
 
   if (!job || !job.outputPath) {
     res.status(404).json({ error: "Mastered file not ready" });
