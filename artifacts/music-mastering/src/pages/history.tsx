@@ -28,10 +28,13 @@ export function HistoryPage() {
       await deleteJob.mutateAsync({ id });
       
       // Update cache optimistically
-      queryClient.setQueryData(getListMasteringJobsQueryKey(), (old: any) => {
-        if (!Array.isArray(old)) return old;
-        return old.filter(job => job.id !== id);
-      });
+      queryClient.setQueryData(
+        getListMasteringJobsQueryKey(),
+        (old: { id: number }[] | undefined) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((job) => job.id !== id);
+        }
+      );
       
       toast({
         title: "Job deleted",
