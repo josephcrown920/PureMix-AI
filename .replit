@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -34,3 +34,8 @@ externalPort = 80
 [nix]
 channel = "stable-25_05"
 packages = ["ffmpeg-full", "libsndfile", "libxcrypt", "pkg-config", "xsimd"]
+
+[userenv]
+
+[userenv.shared]
+VITE_CLERK_PUBLISHABLE_KEY = "pk_test_d29ya2luZy10YWRwb2xlLTM1LmNsZXJrLmFjY291bnRzLmRldiQ"
