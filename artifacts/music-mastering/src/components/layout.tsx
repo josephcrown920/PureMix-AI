@@ -31,18 +31,27 @@ function PlanBadge() {
   if (!me) return null;
   const plan = me.plan;
   const styles: Record<string, string> = {
-    free: "bg-muted text-muted-foreground border-border",
-    pro: "bg-primary/15 text-primary border-primary/30",
+    trial: "bg-muted text-muted-foreground border-border",
+    payg: "bg-primary/15 text-primary border-primary/30",
+    day: "bg-primary/15 text-primary border-primary/30",
     lifetime: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  };
+  const labels: Record<string, string> = {
+    trial: "trial",
+    payg: "pay-as-you-go",
+    day: "24h pass",
+    lifetime: "lifetime",
   };
   return (
     <Badge
       variant="outline"
-      className={`${styles[plan] ?? styles.free} text-[10px] uppercase tracking-wider px-2 font-mono`}
+      className={`${styles[plan] ?? styles.trial} text-[10px] uppercase tracking-wider px-2 font-mono`}
       data-testid="badge-plan"
     >
-      {plan === "pro" && <Sparkles size={10} className="mr-1" />}
-      {plan}
+      {(plan === "lifetime" || plan === "day" || plan === "payg") && (
+        <Sparkles size={10} className="mr-1" />
+      )}
+      {labels[plan] ?? plan}
     </Badge>
   );
 }

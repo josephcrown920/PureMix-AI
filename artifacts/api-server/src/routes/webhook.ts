@@ -1,9 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import { verifyWebhookSignature } from "../lib/paystack";
-import { applyPlanFromTransaction } from "./billing";
+import { applyPurchase } from "./billing";
 import { logger } from "../lib/logger";
+import type { PlanId } from "../lib/plans";
 
 const router: IRouter = Router();
 
@@ -33,56 +32,17 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     switch (event) {
       case "charge.success": {
         const userId = data.metadata?.userId as string | undefined;
-        const internalPlan = data.metadata?.internalPlan as
-          | "pro"
-          | "lifetime"
-          | undefined;
+        const internalPlan = data.metadata?.internalPlan as PlanId | undefined;
+        const jobId = data.metadata?.jobId as number | undefined;
         if (userId && internalPlan) {
-          await applyPlanFromTransaction(userId, internalPlan, data);
-        }
-        break;
-      }
-      case "subscription.create": {
-        const customerCode = data.customer?.customer_code as string | undefined;
-        if (customerCode) {
-          const nextPaymentDate = data.next_payment_date
-            ? new Date(data.next_payment_date)
-            : null;
-          await db
-            .update(usersTable)
-            .set({
-              plan: "pro",
-              paystackSubscriptionCode: data.subscription_code,
-              paystackEmailToken: data.email_token,
-              proRenewsAt: nextPaymentDate,
-              updatedAt: new Date(),
-            })
-            .where(eq(usersTable.paystackCustomerCode, customerCode));
-        }
-        break;
-      }
-      case "invoice.payment_failed":
-      case "subscription.not_renew":
-      case "subscription.disable": {
-        const customerCode = data.customer?.customer_code as string | undefined;
-        if (customerCode) {
-          // Find user; downgrade to free unless they have lifetime.
-          const [user] = await db
-            .select()
-            .from(usersTable)
-            .where(eq(usersTable.paystackCustomerCode, customerCode));
-          if (user) {
-            await db
-              .update(usersTable)
-              .set({
-                plan: user.lifetime ? "lifetime" : "free",
-                paystackSubscriptionCode: null,
-                paystackEmailToken: null,
-                proRenewsAt: null,
-                updatedAt: new Date(),
-              })
-              .where(eq(usersTable.id, user.id));
-          }
+          await applyPurchase(userId, internalPlan, jobId, data);
+
+          // Best-effort: trigger an email send if we just unlocked a job that
+          // is already complete. The mastering processor handles the normal
+          // case; this covers the "user paid AFTER mastering finished" path.
+          await import("../lib/postPurchaseEmail")
+            .then((m) => m.sendEmailsForRecentlyUnlockedJobs(userId))
+            .catch((err) => logger.error({ err }, "post-purchase email failed"));
         }
         break;
       }

@@ -66,6 +66,18 @@ export async function processMasteringJob(jobId: number): Promise<void> {
       .where(eq(masteringJobsTable.id, jobId));
 
     logger.info({ jobId, outputPath }, "Mastering job completed");
+
+    // Fire-and-forget email if this job already has download access.
+    try {
+      const { sendEmailsForRecentlyUnlockedJobs } = await import(
+        "./postPurchaseEmail"
+      );
+      if (job.userId) {
+        await sendEmailsForRecentlyUnlockedJobs(job.userId);
+      }
+    } catch (err) {
+      logger.error({ err, jobId }, "post-mastering email send failed");
+    }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     logger.error({ jobId, err }, "Mastering job failed");

@@ -3,32 +3,40 @@
 import { customFetch } from "@workspace/api-client-react";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
+export type PlanLabel = "trial" | "payg" | "day" | "lifetime";
+export type PlanId = "single" | "day" | "lifetime";
+
+export interface Entitlement {
+  allowed: boolean;
+  consumeMode: "lifetime" | "day" | "credit" | "trial" | null;
+  label: PlanLabel;
+  credits: number;
+  dayPassExpiresAt: string | null;
+  trialAvailable: boolean;
+}
+
 export interface MeResponse {
   id: string;
   email: string | null;
-  plan: "free" | "pro" | "lifetime";
+  plan: PlanLabel;
   lifetime: boolean;
-  proRenewsAt: string | null;
-  usage: {
-    monthlyJobs: number;
-    monthlyJobLimit: number | null;
-    remaining: number | null;
-    periodStart: string;
-  };
-  planConfig: {
-    id: string;
-    name: string;
-    description: string;
-    monthlyJobLimit: number | null;
-    priceCents: number;
-    currency: string;
-    interval: "month" | "one_time" | null;
-  };
+  entitlement: Entitlement;
+  totalJobs: number;
+}
+
+export interface PlanConfig {
+  id: PlanId;
+  name: string;
+  description: string;
+  priceCents: number;
+  currency: string;
+  grants: "credit" | "window" | "lifetime";
+  windowMs?: number;
 }
 
 export interface PlansResponse {
   currency: string;
-  plans: MeResponse["planConfig"][];
+  plans: PlanConfig[];
 }
 
 export const meQueryKey = ["api", "me"] as const;
@@ -43,8 +51,9 @@ export function fetchPlans(): Promise<PlansResponse> {
 }
 
 export function postCheckout(body: {
-  plan: "pro" | "lifetime";
+  plan: PlanId;
   returnUrl: string;
+  jobId?: number;
 }): Promise<{ authorizationUrl: string; reference: string }> {
   return customFetch("/api/billing/checkout", {
     method: "POST",
@@ -52,15 +61,17 @@ export function postCheckout(body: {
   });
 }
 
-export function verifyPayment(reference: string): Promise<{ success: boolean; status: string }> {
-  return customFetch(`/api/billing/verify?reference=${encodeURIComponent(reference)}`);
+export function verifyPayment(
+  reference: string,
+): Promise<{ success: boolean; status: string; plan?: PlanId }> {
+  return customFetch(
+    `/api/billing/verify?reference=${encodeURIComponent(reference)}`,
+  );
 }
 
-export function postCancelSubscription(): Promise<{ success: boolean }> {
-  return customFetch("/api/billing/cancel", { method: "POST" });
-}
-
-export function useMe(options?: Omit<UseQueryOptions<MeResponse>, "queryKey" | "queryFn">) {
+export function useMe(
+  options?: Omit<UseQueryOptions<MeResponse>, "queryKey" | "queryFn">,
+) {
   return useQuery({
     queryKey: meQueryKey,
     queryFn: fetchMe,

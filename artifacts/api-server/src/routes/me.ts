@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, masteringJobsTable } from "@workspace/db";
-import { eq, sql, and, gte } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
-import { PLANS, getJobLimit } from "../lib/plans";
+import { computeEntitlement } from "../lib/plans";
 
 const router: IRouter = Router();
 
@@ -18,36 +18,20 @@ router.get("/me", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.userId, userId),
-        gte(masteringJobsTable.createdAt, monthStart),
-      ),
-    );
+    .where(eq(masteringJobsTable.userId, userId));
 
-  const plan = (user.plan ?? "free") as keyof typeof PLANS;
-  const limit = getJobLimit(plan);
+  const entitlement = computeEntitlement(user);
 
   res.json({
     id: user.id,
     email: user.email,
-    plan,
+    plan: entitlement.label,
     lifetime: user.lifetime,
-    proRenewsAt: user.proRenewsAt?.toISOString() ?? null,
-    usage: {
-      monthlyJobs: count ?? 0,
-      monthlyJobLimit: limit,
-      remaining: limit == null ? null : Math.max(0, limit - (count ?? 0)),
-      periodStart: monthStart.toISOString(),
-    },
-    planConfig: PLANS[plan],
+    entitlement,
+    totalJobs: count ?? 0,
   });
 });
 

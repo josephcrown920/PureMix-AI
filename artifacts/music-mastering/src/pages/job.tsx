@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useGetMasteringJob, getGetMasteringJobQueryKey, getGetInputFileUrl, getGetOutputFileUrl } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles, Lock, Mail, Loader2, Music2, Zap, Crown } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { postCheckout, type PlanId } from "@/lib/api";
 import { PRESET_LABELS } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WaveformPlayer } from "@/components/WaveformPlayer";
@@ -36,6 +38,26 @@ export function JobPage() {
   });
 
   const [activeTab, setActiveTab] = useState<"sidebyside" | "original" | "mastered">("sidebyside");
+  const [unlocking, setUnlocking] = useState<PlanId | null>(null);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const startUnlock = async (plan: PlanId) => {
+    if (!job) return;
+    setUnlocking(plan);
+    try {
+      const returnUrl = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}/billing/return?next=/jobs/${job.id}`;
+      const result = await postCheckout({ plan, returnUrl, jobId: plan === "single" ? job.id : undefined });
+      if (result?.authorizationUrl) {
+        window.location.href = result.authorizationUrl;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      toast({ title: "Checkout failed", description: err?.message ?? "Try again.", variant: "destructive" });
+      setUnlocking(null);
+    }
+  };
 
   if (isLoading && !job) {
     return (
@@ -145,11 +167,17 @@ export function JobPage() {
                     Your track has been professionally mastered and is ready.
                   </CardDescription>
                 </div>
-                <Button asChild size="lg" className="font-bold shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-shadow">
-                  <a href={masteredUrl} download={`Mastered_${job.originalFilename}`} data-testid="btn-download">
-                    <Download className="mr-2 h-5 w-5" /> Download Master
-                  </a>
-                </Button>
+                {job.downloadUnlocked ? (
+                  <Button asChild size="lg" className="font-bold shadow-[0_0_15px_hsl(195_90%_55%/0.3)] hover:shadow-[0_0_25px_hsl(195_90%_55%/0.5)] transition-shadow">
+                    <a href={`${masteredUrl}${masteredUrl.includes("?") ? "&" : "?"}download=1`} download={`Mastered_${job.originalFilename}`} data-testid="btn-download">
+                      <Download className="mr-2 h-5 w-5" /> Download WAV
+                    </a>
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-sm font-medium" data-testid="badge-preview-only">
+                    <Lock size={14} /> Preview only — pay to download
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -265,6 +293,83 @@ export function JobPage() {
               </p>
             </CardContent>
           </Card>
+
+          {!job.downloadUnlocked && (
+            <Card className="border-primary/40 bg-gradient-to-br from-primary/5 to-transparent" data-testid="paywall-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock size={18} className="text-primary" /> Unlock the download
+                </CardTitle>
+                <CardDescription>
+                  Your master is ready to preview. Pick an option below to download the high-resolution WAV and have it emailed to you.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid sm:grid-cols-3 gap-3">
+                <Button
+                  variant="outline"
+                  className="h-auto flex flex-col items-start gap-1 p-4 text-left border-border/60 hover:border-primary/60"
+                  onClick={() => startUnlock("single")}
+                  disabled={unlocking !== null}
+                  data-testid="btn-unlock-single"
+                >
+                  {unlocking === "single" ? (
+                    <Loader2 className="h-4 w-4 animate-spin self-center" />
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-2 text-sm font-bold"><Music2 size={14} /> Just this one</span>
+                      <span className="text-2xl font-mono font-bold">$2</span>
+                      <span className="text-[11px] text-muted-foreground">Unlock + email this master</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="h-auto flex flex-col items-start gap-1 p-4 text-left shadow-[0_0_18px_hsl(195_90%_55%/0.25)]"
+                  onClick={() => startUnlock("day")}
+                  disabled={unlocking !== null}
+                  data-testid="btn-unlock-day"
+                >
+                  {unlocking === "day" ? (
+                    <Loader2 className="h-4 w-4 animate-spin self-center" />
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-2 text-sm font-bold"><Zap size={14} /> 24-hour pass</span>
+                      <span className="text-2xl font-mono font-bold">$10</span>
+                      <span className="text-[11px] opacity-80">Unlimited masters &amp; downloads</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto flex flex-col items-start gap-1 p-4 text-left border-amber-500/40 hover:border-amber-500/80 hover:bg-amber-500/10"
+                  onClick={() => startUnlock("lifetime")}
+                  disabled={unlocking !== null}
+                  data-testid="btn-unlock-lifetime"
+                >
+                  {unlocking === "lifetime" ? (
+                    <Loader2 className="h-4 w-4 animate-spin self-center" />
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-2 text-sm font-bold text-amber-400"><Crown size={14} /> Lifetime</span>
+                      <span className="text-2xl font-mono font-bold">$200</span>
+                      <span className="text-[11px] text-muted-foreground">Forever, all masters</span>
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+              <CardContent className="pt-0 pb-6 text-xs text-muted-foreground flex items-center gap-2">
+                <Mail size={12} /> After payment we'll email the WAV to your account email and unlock the download here.
+              </CardContent>
+            </Card>
+          )}
+
+          {job.downloadUnlocked && (
+            <Card className="border-emerald-500/30 bg-emerald-500/5" data-testid="email-card">
+              <CardContent className="p-4 flex items-center gap-3 text-sm">
+                <Mail size={16} className="text-emerald-400" />
+                <span>We've also emailed a download link to your account email.</span>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

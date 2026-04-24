@@ -98,14 +98,14 @@ export function LandingPage() {
             </div>
 
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 font-mono">
-              <Sparkles size={12} className="animate-pulse-slow" /> AI-powered mastering
+              <Sparkles size={12} className="animate-pulse-slow" /> Built for Afrobeats, hip-hop &amp; trap
             </span>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl">
-              Studio-grade masters,
-              <span className="text-primary"> in seconds.</span>
+              The AI mastering engine
+              <span className="text-primary"> tuned for African music.</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Upload your mix, pick a target platform, and get a polished, loudness-compliant master ready to release. No plugins. No engineer. Just your sound, perfected.
+              Drop your Afrobeats, amapiano, hip-hop or trap mix and get a release-ready master in seconds. Preview free. Pay only when you want to download.
             </p>
 
             {/* Live equalizer */}
@@ -134,7 +134,7 @@ export function LandingPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              3 free masters per month. No credit card required.
+              1 free trial master. No card required to preview.
             </p>
           </div>
         </div>
@@ -235,9 +235,9 @@ export function LandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { name: "Free", price: "$0", desc: "3 masters / month", cta: "Get started", to: "/sign-up", featured: false },
-            { name: "Pro", price: "$9.99/mo", desc: "Unlimited masters", cta: "Go Pro", to: "/pricing", featured: true },
-            { name: "Lifetime", price: "$99", desc: "Pay once, master forever", cta: "Buy lifetime", to: "/pricing", featured: false },
+            { name: "Single Master", price: "$2", desc: "One track, one download", cta: "Buy single", to: "/pricing", featured: false },
+            { name: "24-Hour Pass", price: "$10", desc: "Unlimited masters for 24h", cta: "Best value", to: "/pricing", featured: true },
+            { name: "Lifetime", price: "$200", desc: "Unlimited forever", cta: "Buy lifetime", to: "/pricing", featured: false },
           ].map((p) => (
             <Card
               key={p.name}
@@ -245,7 +245,7 @@ export function LandingPage() {
             >
               {p.featured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
-                  Most popular
+                  Best value
                 </div>
               )}
               <CardContent className="p-6 flex flex-col gap-4 text-center">

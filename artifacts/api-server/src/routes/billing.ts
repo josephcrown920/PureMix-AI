@@ -1,14 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, masteringJobsTable } from "@workspace/db";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
-import { PLANS, CURRENCY } from "../lib/plans";
-import {
-  initializeTransaction,
-  verifyTransaction,
-  ensurePaystackPlan,
-  disableSubscription,
-} from "../lib/paystack";
+import { PLANS, CURRENCY, type PlanId } from "../lib/plans";
+import { initializeTransaction, verifyTransaction } from "../lib/paystack";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -20,11 +15,13 @@ router.get("/billing/plans", (_req, res): void => {
   });
 });
 
-// POST /billing/checkout  body: { plan: 'pro' | 'lifetime', returnUrl: string }
+// POST /billing/checkout  body: { plan: 'single' | 'day' | 'lifetime', returnUrl, jobId? }
+// jobId is optional — when present, that specific locked job will be unlocked
+// after a successful 'single' purchase (instead of just adding a credit).
 router.post("/billing/checkout", requireAuth, async (req, res): Promise<void> => {
-  const { plan, returnUrl } = req.body ?? {};
-  if (plan !== "pro" && plan !== "lifetime") {
-    res.status(400).json({ error: "plan must be 'pro' or 'lifetime'" });
+  const { plan, returnUrl, jobId } = req.body ?? {};
+  if (plan !== "single" && plan !== "day" && plan !== "lifetime") {
+    res.status(400).json({ error: "plan must be 'single', 'day' or 'lifetime'" });
     return;
   }
   if (!returnUrl || typeof returnUrl !== "string") {
@@ -42,21 +39,20 @@ router.post("/billing/checkout", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
-  const cfg = PLANS[plan as "pro" | "lifetime"];
+  const cfg = PLANS[plan as PlanId];
 
   try {
-    let paystackPlanCode: string | undefined;
-    if (plan === "pro") {
-      paystackPlanCode = await ensurePaystackPlan("pro", cfg.priceCents, cfg.currency);
-    }
-
     const result = await initializeTransaction({
       email,
       amountCents: cfg.priceCents,
       currency: cfg.currency,
       callbackUrl: returnUrl,
-      plan: paystackPlanCode,
-      metadata: { userId, internalPlan: plan },
+      // No `plan` field — every purchase is a one-time charge now.
+      metadata: {
+        userId,
+        internalPlan: plan,
+        jobId: jobId != null ? Number(jobId) : undefined,
+      },
     });
 
     res.json({
@@ -85,62 +81,44 @@ router.get("/billing/verify", requireAuth, async (req, res): Promise<void> => {
 
     const userId = (data.metadata as any)?.userId ?? req.userId;
     const internalPlan = (data.metadata as any)?.internalPlan as
-      | "pro"
-      | "lifetime"
+      | PlanId
       | undefined;
+    const jobId = (data.metadata as any)?.jobId as number | undefined;
 
     if (userId && internalPlan) {
-      await applyPlanFromTransaction(userId, internalPlan, data);
+      await applyPurchase(userId, internalPlan, jobId, data);
     }
 
-    res.json({ success: true, status: "success" });
+    res.json({ success: true, status: "success", plan: internalPlan });
   } catch (err: any) {
     logger.error({ err: err?.message }, "Verify failed");
     res.status(500).json({ error: err?.message ?? "Verify failed" });
   }
 });
 
-// POST /billing/cancel — disable Pro subscription
-router.post("/billing/cancel", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.userId!;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user?.paystackSubscriptionCode || !user?.paystackEmailToken) {
-    res.status(400).json({ error: "No active subscription to cancel" });
-    return;
-  }
-  try {
-    await disableSubscription({
-      code: user.paystackSubscriptionCode,
-      token: user.paystackEmailToken,
-    });
-    // Don't downgrade immediately — user keeps Pro access until the current
-    // billing period ends. Paystack's `subscription.disable` / `subscription.not_renew`
-    // webhook will trigger the actual plan downgrade when the period closes.
-    // We only clear the subscription handles so the cancel button hides.
-    await db
-      .update(usersTable)
-      .set({
-        paystackSubscriptionCode: null,
-        paystackEmailToken: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, userId));
-    res.json({
-      success: true,
-      message:
-        user.proRenewsAt
-          ? `You'll keep Pro access until ${new Date(user.proRenewsAt).toLocaleDateString()}.`
-          : "Subscription cancelled.",
-    });
-  } catch (err: any) {
-    logger.error({ err: err?.message }, "Cancel failed");
-    res.status(500).json({ error: err?.message ?? "Cancel failed" });
-  }
+// POST /billing/cancel — vestigial. Nothing recurs anymore.
+router.post("/billing/cancel", requireAuth, async (_req, res): Promise<void> => {
+  res.json({
+    success: true,
+    message: "Your purchases don't auto-renew — there's nothing to cancel.",
+  });
 });
 
-export async function applyPlanFromTransaction(
+/**
+ * Apply a successful purchase to a user. Idempotent w.r.t. the txn reference
+ * because the underlying Paystack reference is verified before we get here, and
+ * the webhook + verify endpoint both call this with the same data.
+ *
+ * Granted entitlements:
+ *   - lifetime → user.lifetime = true; unlock all locked jobs
+ *   - day      → dayPassExpiresAt = now + 24h (extends if already active);
+ *                unlock all locked jobs
+ *   - single   → if jobId provided, unlock that job; otherwise +1 credit
+ */
+export async function applyPurchase(
   userId: string,
-  internalPlan: "pro" | "lifetime",
+  internalPlan: PlanId,
+  jobId: number | undefined,
   txData: any,
 ): Promise<void> {
   const customerCode = txData.customer?.customer_code as string | undefined;
@@ -155,19 +133,86 @@ export async function applyPlanFromTransaction(
         updatedAt: new Date(),
       })
       .where(eq(usersTable.id, userId));
+    await unlockAllLockedJobs(userId, "lifetime");
     return;
   }
 
-  // pro: subscription details arrive via webhook (subscription.create).
-  // For immediate UX, set plan='pro' now.
+  if (internalPlan === "day") {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const now = Date.now();
+    const cfg = PLANS.day;
+    const currentExpiry = user?.dayPassExpiresAt
+      ? new Date(user.dayPassExpiresAt).getTime()
+      : 0;
+    const base = Math.max(now, currentExpiry);
+    const newExpiry = new Date(base + (cfg.windowMs ?? 24 * 60 * 60 * 1000));
+    await db
+      .update(usersTable)
+      .set({
+        plan: "day",
+        dayPassExpiresAt: newExpiry,
+        paystackCustomerCode: customerCode ?? undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, userId));
+    await unlockAllLockedJobs(userId, "day");
+    return;
+  }
+
+  // single
+  if (jobId != null) {
+    // Try to unlock that specific job. If it's already unlocked (or doesn't
+    // belong to the user), fall back to crediting the user instead.
+    const [job] = await db
+      .select()
+      .from(masteringJobsTable)
+      .where(
+        and(
+          eq(masteringJobsTable.id, jobId),
+          eq(masteringJobsTable.userId, userId),
+        ),
+      );
+    if (job && !job.downloadUnlocked) {
+      await db
+        .update(masteringJobsTable)
+        .set({ downloadUnlocked: true, unlockMode: "credit" })
+        .where(eq(masteringJobsTable.id, jobId));
+      await db
+        .update(usersTable)
+        .set({
+          plan: "payg",
+          paystackCustomerCode: customerCode ?? undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, userId));
+      // No credit added — paid for this specific master.
+      return;
+    }
+  }
+
+  // Generic single-master credit
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   await db
     .update(usersTable)
     .set({
-      plan: "pro",
+      plan: user?.lifetime ? "lifetime" : "payg",
+      credits: (user?.credits ?? 0) + 1,
       paystackCustomerCode: customerCode ?? undefined,
       updatedAt: new Date(),
     })
     .where(eq(usersTable.id, userId));
+}
+
+async function unlockAllLockedJobs(userId: string, mode: "lifetime" | "day"): Promise<void> {
+  await db
+    .update(masteringJobsTable)
+    .set({ downloadUnlocked: true, unlockMode: mode })
+    .where(
+      and(
+        eq(masteringJobsTable.userId, userId),
+        eq(masteringJobsTable.downloadUnlocked, false),
+      ),
+    );
 }
 
 export default router;

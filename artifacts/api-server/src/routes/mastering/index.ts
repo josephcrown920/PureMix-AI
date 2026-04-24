@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import { db, masteringJobsTable, usersTable } from "@workspace/db";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { processMasteringJob } from "../../lib/masteringProcessor";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@workspace/api-zod";
 import fs from "fs";
 import { requireAuth } from "../../middlewares/requireAuth";
-import { getJobLimit, PLANS } from "../../lib/plans";
+import { computeEntitlement } from "../../lib/plans";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router: IRouter = Router();
@@ -65,6 +65,8 @@ function jobToJson(j: typeof masteringJobsTable.$inferSelect) {
     measuredInputLufs: j.measuredInputLufs,
     measuredOutputLufs: j.measuredOutputLufs,
     errorMessage: j.errorMessage,
+    downloadUnlocked: j.downloadUnlocked,
+    unlockMode: j.unlockMode,
     createdAt: j.createdAt.toISOString(),
     completedAt: j.completedAt?.toISOString() ?? null,
   };
@@ -93,34 +95,62 @@ router.post(
     }
     const userId = req.userId!;
 
-    // Enforce monthly job limit based on user's plan.
+    // Determine if this submission is allowed and how the download will be
+    // unlocked. Trial users can submit (preview only); paid users get the
+    // download unlocked + email after mastering completes.
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    const plan = (user?.plan ?? "free") as keyof typeof PLANS;
-    const limit = getJobLimit(plan);
-    if (limit != null) {
-      const monthStart = new Date();
-      monthStart.setUTCDate(1);
-      monthStart.setUTCHours(0, 0, 0, 0);
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(masteringJobsTable)
-        .where(
-          and(
-            eq(masteringJobsTable.userId, userId),
-            gte(masteringJobsTable.createdAt, monthStart),
-          ),
-        );
-      if ((count ?? 0) >= limit) {
-        // Clean up uploaded file
+    if (!user) {
+      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const ent = computeEntitlement(user);
+    if (!ent.allowed) {
+      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+      res.status(402).json({
+        error: "You've used your free trial master. Pay $2 for one master, $10 for a 24-hour pass, or $200 lifetime.",
+        code: "PLAN_LIMIT",
+      });
+      return;
+    }
+
+    // Reserve the entitlement BEFORE inserting the job so heavy concurrency
+    // can't drain credits / trial twice.
+    let downloadUnlocked = false;
+    let unlockMode: string | null = null;
+    if (ent.consumeMode === "lifetime") {
+      downloadUnlocked = true;
+      unlockMode = "lifetime";
+    } else if (ent.consumeMode === "day") {
+      downloadUnlocked = true;
+      unlockMode = "day";
+    } else if (ent.consumeMode === "credit") {
+      // Decrement a credit (only if still > 0 — guards races)
+      const result = await db
+        .update(usersTable)
+        .set({ credits: sql`${usersTable.credits} - 1`, updatedAt: new Date() })
+        .where(and(eq(usersTable.id, userId), sql`${usersTable.credits} > 0`))
+        .returning({ credits: usersTable.credits });
+      if (result.length === 0) {
         try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
-        res.status(402).json({
-          error: `Monthly limit reached (${limit} jobs on ${plan} plan). Upgrade for unlimited masters.`,
-          code: "PLAN_LIMIT",
-          plan,
-          limit,
-        });
+        res.status(402).json({ error: "No credits remaining.", code: "PLAN_LIMIT" });
         return;
       }
+      downloadUnlocked = true;
+      unlockMode = "credit";
+    } else if (ent.consumeMode === "trial") {
+      const result = await db
+        .update(usersTable)
+        .set({ freeTrialUsed: true, updatedAt: new Date() })
+        .where(and(eq(usersTable.id, userId), eq(usersTable.freeTrialUsed, false)))
+        .returning({ id: usersTable.id });
+      if (result.length === 0) {
+        try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+        res.status(402).json({ error: "Free trial already used.", code: "PLAN_LIMIT" });
+        return;
+      }
+      downloadUnlocked = false; // preview only
+      unlockMode = null;
     }
 
     const preset = req.body.preset as string;
@@ -150,6 +180,8 @@ router.post(
         status: "pending",
         progress: 0,
         targetLufs: effectiveLufs,
+        downloadUnlocked,
+        unlockMode,
       })
       .returning();
 
@@ -267,9 +299,30 @@ router.get("/mastering/files/:id/output", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Mastered file not ready" });
     return;
   }
+  // Streaming for in-app preview is allowed for everyone (status 200, inline).
+  // Downloads (Content-Disposition: attachment) require an unlocked job.
+  const wantsDownload = req.query.download === "1";
   const masteredFilename = `mastered_${job.originalFilename.replace(/\.[^.]+$/, "")}.wav`;
   res.setHeader("Content-Type", "audio/wav");
-  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(masteredFilename)}"`);
+  if (wantsDownload) {
+    if (!job.downloadUnlocked) {
+      res.status(402).json({
+        error: "This master is preview-only. Pay $2 to unlock the download.",
+        code: "DOWNLOAD_LOCKED",
+        jobId: job.id,
+      });
+      return;
+    }
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(masteredFilename)}"`,
+    );
+  } else {
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${encodeURIComponent(masteredFilename)}"`,
+    );
+  }
   fs.createReadStream(job.outputPath).pipe(res);
 });
 

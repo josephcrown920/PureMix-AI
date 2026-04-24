@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,6 +17,11 @@ export const masteringJobsTable = pgTable("mastering_jobs", {
   measuredInputLufs: real("measured_input_lufs"),
   measuredOutputLufs: real("measured_output_lufs"),
   errorMessage: text("error_message"),
+  // Whether the user has paid for / is entitled to download this master.
+  downloadUnlocked: boolean("download_unlocked").notNull().default(false),
+  // How the download right was granted: 'lifetime' | 'day' | 'credit' (consumed) | null
+  unlockMode: text("unlock_mode"),
+  emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
