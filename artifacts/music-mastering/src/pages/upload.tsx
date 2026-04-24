@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { UploadCloud, FileAudio, Settings2, Loader2, Music, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,14 @@ import { formatTime, PRESET_LABELS } from "@/lib/format";
 import { useMe, meQueryKey } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { Frame } from "@/components/Frame";
+import { fadeUp } from "@/lib/motion";
 type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
 
 export function UploadPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const reduce = useReducedMotion();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preset, setPreset] = useState<CreateMasteringJobBodyPreset>("streaming");
@@ -236,39 +240,107 @@ export function UploadPage() {
                   data-testid="input-file"
                 />
 
-                {file ? (
-                  <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
-                    <div className="p-4 rounded-full bg-primary/20 text-primary">
-                      <FileAudio size={48} strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium font-mono">{file.name}</h3>
-                      <p className="text-sm text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClearFile();
-                      }}
-                      className="mt-2 border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                      data-testid="btn-clear-file"
+                <AnimatePresence mode="wait" initial={false}>
+                  {file ? (
+                    <motion.div
+                      key="file"
+                      initial={reduce ? false : { opacity: 0, scale: 0.96, y: 8 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={reduce ? undefined : { opacity: 0, scale: 0.96, y: -8 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="w-full flex justify-center"
                     >
-                      Remove File
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 pointer-events-none">
-                    <div className={`p-4 rounded-full transition-colors duration-300 ${dragActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                      <UploadCloud size={48} strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium">Click or drag & drop</h3>
-                      <p className="text-sm text-muted-foreground mt-1">MP3, WAV, or FLAC up to 100MB</p>
-                    </div>
-                  </div>
-                )}
+                      <Frame
+                        variant="showcase"
+                        label="Uploaded track"
+                        animate={false}
+                        className="w-full max-w-md"
+                        contentClassName="p-6 flex flex-col items-center gap-4"
+                      >
+                        <motion.div
+                          className="p-4 rounded-full bg-primary/20 text-primary ring-2 ring-primary/30 shadow-[0_0_30px_hsl(195_90%_55%/0.4)]"
+                          animate={
+                            reduce
+                              ? undefined
+                              : { boxShadow: [
+                                  "0 0 20px hsl(195 90% 55% / 0.3)",
+                                  "0 0 40px hsl(195 90% 55% / 0.5)",
+                                  "0 0 20px hsl(195 90% 55% / 0.3)",
+                                ] }
+                          }
+                          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          <FileAudio size={48} strokeWidth={1.5} />
+                        </motion.div>
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium font-mono break-all" data-testid="text-uploaded-filename">
+                            {file.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {(file.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </div>
+                        {/* Mini equalizer accent */}
+                        <div className="flex items-end gap-1 h-6" aria-hidden>
+                          {Array.from({ length: 18 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="w-1 rounded-full bg-gradient-to-t from-primary/40 to-primary animate-equalize"
+                              style={{
+                                height: "100%",
+                                animationDelay: `${(i % 6) * 0.1}s`,
+                                animationDuration: `${0.7 + (i % 4) * 0.18}s`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClearFile();
+                          }}
+                          className="mt-1 border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                          data-testid="btn-clear-file"
+                        >
+                          Remove File
+                        </Button>
+                      </Frame>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={reduce ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={reduce ? undefined : { opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex flex-col items-center gap-4 pointer-events-none"
+                    >
+                      <motion.div
+                        className={`p-4 rounded-full transition-colors duration-300 ${dragActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                        animate={
+                          reduce
+                            ? undefined
+                            : dragActive
+                              ? { scale: [1, 1.08, 1] }
+                              : { y: [0, -4, 0] }
+                        }
+                        transition={{
+                          duration: dragActive ? 0.6 : 2.4,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      >
+                        <UploadCloud size={48} strokeWidth={1.5} />
+                      </motion.div>
+                      <div>
+                        <h3 className="text-lg font-medium">Click or drag &amp; drop</h3>
+                        <p className="text-sm text-muted-foreground mt-1">MP3, WAV, or FLAC up to 100MB</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </CardContent>
           </Card>

@@ -253,9 +253,70 @@
   }
   .animate-ring-ping { animation: ring-ping 3.5s ease-out infinite; }
 
+  @keyframes mastering-bar {
+    0%, 100% { transform: scaleY(0.35); opacity: 0.85; }
+    50% { transform: scaleY(1); opacity: 1; }
+  }
+  .animate-mastering-bar {
+    animation: mastering-bar 0.9s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @keyframes scanner {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(450%); }
+  }
+  .animate-scanner { animation: scanner 2.4s ease-in-out infinite; }
+
+  @keyframes vu-needle {
+    0%, 100% { transform: rotate(-30deg); }
+    20% { transform: rotate(15deg); }
+    40% { transform: rotate(-10deg); }
+    60% { transform: rotate(28deg); }
+    80% { transform: rotate(-5deg); }
+  }
+  .animate-vu-needle {
+    animation: vu-needle 1.6s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+
+  @keyframes console-glow {
+    0%, 100% { box-shadow: 0 0 6px hsl(35 90% 55% / 0.3), inset 0 0 4px hsl(35 90% 55% / 0.4); }
+    50% { box-shadow: 0 0 14px hsl(35 90% 55% / 0.7), inset 0 0 8px hsl(35 90% 55% / 0.6); }
+  }
+  .animate-console-glow { animation: console-glow 1.8s ease-in-out infinite; }
+
+  /* Vintage console plate texture (brushed aluminum) */
+  .console-plate {
+    background:
+      linear-gradient(180deg, hsl(28 30% 16%) 0%, hsl(25 25% 11%) 50%, hsl(22 22% 8%) 100%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 2px, rgba(0,0,0,0.04) 2px 4px);
+    background-blend-mode: overlay;
+  }
 
   .text-shadow-glow {
     text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  }
+
+  /* Respect reduced-motion: disable decorative animations */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse-slow,
+    .animate-float,
+    .animate-spin-slow,
+    .animate-spin-slower,
+    .animate-equalize,
+    .animate-wave,
+    .animate-glow-pulse,
+    .animate-ring-ping,
+    .animate-mastering-bar,
+    .animate-scanner,
+    .animate-vu-needle,
+    .animate-console-glow {
+      animation: none !important;
+    }
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+    }
   }
 
   input[type="search"]::-webkit-search-cancel-button {

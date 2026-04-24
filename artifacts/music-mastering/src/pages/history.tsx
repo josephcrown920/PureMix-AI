@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import { useListMasteringJobs, useDeleteMasteringJob, getListMasteringJobsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,11 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate, PRESET_LABELS, STATUS_COLORS } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQueryClient } from "@tanstack/react-query";
+import { stagger, fadeUp } from "@/lib/motion";
+import { CardCorners } from "@/components/Frame";
 
 export function HistoryPage() {
+  const reduce = useReducedMotion();
   const { data: jobs, isLoading } = useListMasteringJobs();
   const deleteJob = useDeleteMasteringJob();
   const { toast } = useToast();
@@ -91,13 +95,20 @@ export function HistoryPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <motion.div
+          className="grid gap-4"
+          initial={reduce ? false : "hidden"}
+          animate="visible"
+          variants={stagger}
+        >
           {jobs.map((job) => {
             const isCompleted = job.status === "completed";
-            
+
             return (
-              <Link key={job.id} href={`/jobs/${job.id}`}>
-                <Card className="bg-card/40 hover:bg-card hover:border-primary/30 transition-all cursor-pointer group overflow-hidden border-border/60">
+              <motion.div key={job.id} variants={fadeUp}>
+              <Link href={`/jobs/${job.id}`}>
+                <Card className="relative bg-card/40 hover:bg-card hover:border-primary/40 hover:shadow-[0_0_28px_-12px_hsl(195_90%_55%/0.5)] transition-all cursor-pointer group overflow-hidden border-border/60">
+                  <CardCorners />
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row md:items-center">
                       <div className="p-5 flex-1 flex flex-col gap-2">
@@ -154,9 +165,10 @@ export function HistoryPage() {
                   </CardContent>
                 </Card>
               </Link>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
     </div>
   );

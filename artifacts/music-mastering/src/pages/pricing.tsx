@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Loader2, Sparkles, Zap, Crown, Music2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMe, usePlans, postCheckout, type PlanId } from "@/lib/api";
+import { stagger, fadeUp } from "@/lib/motion";
+import { CardCorners } from "@/components/Frame";
 
 const PLAN_FEATURES: Record<PlanId, string[]> = {
   single: [
@@ -34,6 +37,7 @@ const PLAN_ICONS: Record<PlanId, typeof Sparkles> = {
 };
 
 export function PricingPage() {
+  const reduce = useReducedMotion();
   const { data: plansData } = usePlans();
   const { data: me } = useMe();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
@@ -85,7 +89,12 @@ export function PricingPage() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <motion.div
+        className="grid md:grid-cols-3 gap-6"
+        initial={reduce ? false : "hidden"}
+        animate="visible"
+        variants={stagger}
+      >
         {plans.map((p) => {
           const featured = p.id === "day";
           const Icon = PLAN_ICONS[p.id];
@@ -96,13 +105,15 @@ export function PricingPage() {
               : p.id === "day"
                 ? "for 24 hours"
                 : "one payment";
+          const cornerColor = featured ? "border-primary/70" : "border-primary/35";
 
           return (
+            <motion.div key={p.id} variants={fadeUp}>
             <Card
-              key={p.id}
               className={`relative ${featured ? "border-primary/60 shadow-[0_0_36px_hsl(195_90%_55%/0.18)]" : "border-border/50"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
               data-testid={`pricing-card-${p.id}`}
             >
+              <CardCorners color={cornerColor} />
               {featured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
                   Best value
@@ -146,9 +157,10 @@ export function PricingPage() {
                 </Button>
               </CardContent>
             </Card>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       <p className="text-center text-xs text-muted-foreground mt-10">
         Payments processed securely by Paystack. All purchases are one-time —

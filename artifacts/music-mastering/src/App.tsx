@@ -6,12 +6,14 @@ import {
   useLocation,
   Redirect,
 } from "wouter";
+import { AnimatePresence } from "framer-motion";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
+import { PageTransition } from "@/components/PageTransition";
 import { UploadPage } from "@/pages/upload";
 import { JobPage } from "@/pages/job";
 import { HistoryPage } from "@/pages/history";
@@ -170,6 +172,32 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function AnimatedRoutes() {
+  const [location] = useLocation();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <PageTransition key={location}>
+        <Switch location={location}>
+          <Route path="/" component={HomeRoute} />
+          <Route path="/sign-in/*?" component={SignInPage} />
+          <Route path="/sign-up/*?" component={SignUpPage} />
+          <Route path="/pricing">
+            <Layout><PricingPage /></Layout>
+          </Route>
+          <Route path="/billing/return" component={() => <Protected component={BillingReturnPage} />} />
+          <Route path="/studio" component={() => <Protected component={UploadPage} />} />
+          <Route path="/jobs/:id" component={() => <Protected component={JobPage} />} />
+          <Route path="/history" component={() => <Protected component={HistoryPage} />} />
+          <Route path="/account" component={() => <Protected component={AccountPage} />} />
+          <Route>
+            <Layout><NotFound /></Layout>
+          </Route>
+        </Switch>
+      </PageTransition>
+    </AnimatePresence>
+  );
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
   return (
@@ -194,22 +222,7 @@ function ClerkProviderWithRoutes() {
         <ClerkQueryClientCacheInvalidator />
         <ApiAuthBridge />
         <TooltipProvider>
-          <Switch>
-            <Route path="/" component={HomeRoute} />
-            <Route path="/sign-in/*?" component={SignInPage} />
-            <Route path="/sign-up/*?" component={SignUpPage} />
-            <Route path="/pricing">
-              <Layout><PricingPage /></Layout>
-            </Route>
-            <Route path="/billing/return" component={() => <Protected component={BillingReturnPage} />} />
-            <Route path="/studio" component={() => <Protected component={UploadPage} />} />
-            <Route path="/jobs/:id" component={() => <Protected component={JobPage} />} />
-            <Route path="/history" component={() => <Protected component={HistoryPage} />} />
-            <Route path="/account" component={() => <Protected component={AccountPage} />} />
-            <Route>
-              <Layout><NotFound /></Layout>
-            </Route>
-          </Switch>
+          <AnimatedRoutes />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

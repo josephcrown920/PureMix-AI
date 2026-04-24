@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import { useGetMasteringJob, getGetMasteringJobQueryKey, getGetInputFileUrl, getGetOutputFileUrl } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { postCheckout, type PlanId } from "@/lib/api";
 import { PRESET_LABELS } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WaveformPlayer } from "@/components/WaveformPlayer";
+import { Frame } from "@/components/Frame";
+import { ProcessingWaveform } from "@/components/ProcessingWaveform";
 
 const PROCESSING_STAGES = [
   { threshold: 0, label: "Initializing engine...", icon: Disc },
@@ -24,6 +27,7 @@ const PROCESSING_STAGES = [
 export function JobPage() {
   const params = useParams();
   const id = parseInt(params.id || "0", 10);
+  const reduce = useReducedMotion();
   
   const { data: job, isLoading, error } = useGetMasteringJob(id, {
     query: {
@@ -115,27 +119,97 @@ export function JobPage() {
       </div>
 
       {isProcessing && (
-        <Card className="border-primary/20 bg-card shadow-[0_0_30px_rgba(245,158,11,0.05)] overflow-hidden">
-          <CardContent className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[400px] relative">
-            <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-              <div className="w-[120%] h-64 bg-primary/20 blur-3xl rounded-[100%] animate-pulse-slow"></div>
+        <Frame
+          variant="console"
+          label="Mastering engine"
+          badge={
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-[hsl(22_22%_8%)] border border-[hsl(0_60%_45%)]/50 text-[10px] font-mono uppercase tracking-[0.2em] text-[hsl(0_75%_65%)]">
+              <span className={`h-1.5 w-1.5 rounded-full bg-[hsl(0_75%_55%)] ${reduce ? "" : "animate-pulse"}`} />
+              Rec
+            </span>
+          }
+          contentClassName="p-6 md:p-10 flex flex-col gap-6"
+        >
+          {/* Vintage console header row: stage display + needle meter */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-center">
+            <div className="flex items-center gap-4">
+              <motion.div
+                className="w-16 h-16 rounded-full bg-gradient-to-b from-[hsl(28_30%_18%)] to-[hsl(22_22%_10%)] border-2 border-[hsl(35_45%_35%)] flex items-center justify-center shadow-[inset_0_2px_0_0_hsl(35_50%_45%/0.5),inset_0_-2px_4px_rgba(0,0,0,0.5),0_0_20px_hsl(35_85%_55%/0.25)]"
+                animate={reduce ? undefined : { rotate: 360 }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              >
+                <StageIcon className="h-7 w-7 text-[hsl(35_85%_60%)]" />
+              </motion.div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold font-mono text-[hsl(35_70%_85%)]" data-testid="text-processing-stage">
+                  {currentStage.label}
+                </h2>
+                <p className="text-xs font-mono uppercase tracking-[0.18em] text-[hsl(35_50%_60%)] mt-1">
+                  Engine active • High-resolution audio
+                </p>
+              </div>
             </div>
 
-            <div className="relative z-10 w-full max-w-md mx-auto text-center flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-background border-2 border-primary/30 flex items-center justify-center mb-8 shadow-[0_0_20px_rgba(245,158,11,0.2)] animate-pulse-slow">
-                <StageIcon className="h-10 w-10 text-primary" />
+            {/* VU-meter style needle gauge */}
+            <div className="hidden md:flex flex-col items-center gap-1 min-w-[140px]">
+              <div className="relative w-32 h-16 rounded-t-[64px] bg-gradient-to-b from-[hsl(40_50%_88%)] to-[hsl(35_45%_75%)] border border-[hsl(35_25%_25%)] shadow-[inset_0_-4px_8px_rgba(0,0,0,0.2),0_2px_6px_rgba(0,0,0,0.4)] overflow-hidden">
+                {/* Scale ticks */}
+                {[-30, -15, 0, 15, 30].map((deg, i) => (
+                  <span
+                    key={i}
+                    className={`absolute top-1 left-1/2 origin-bottom h-3 w-px ${i === 4 ? "bg-[hsl(0_70%_45%)]" : "bg-[hsl(25_30%_25%)]"}`}
+                    style={{
+                      transform: `translateX(-50%) rotate(${deg}deg) translateY(0)`,
+                      transformOrigin: "bottom center",
+                      bottom: 0,
+                      top: "auto",
+                      height: "55px",
+                    }}
+                  />
+                ))}
+                {/* Needle */}
+                <span
+                  aria-hidden
+                  className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-px h-14 bg-[hsl(0_75%_45%)] shadow-[0_0_4px_hsl(0_75%_45%/0.6)] animate-vu-needle"
+                  style={{ transformOrigin: "bottom center" }}
+                />
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[hsl(25_30%_15%)] border border-[hsl(35_25%_30%)]" />
               </div>
-              
-              <h2 className="text-2xl font-bold mb-2 font-mono" data-testid="text-processing-stage">{currentStage.label}</h2>
-              <p className="text-muted-foreground mb-8 font-mono text-sm">Engine active • Processing high-resolution audio</p>
-              
-              <div className="w-full flex items-center gap-4">
-                <span className="text-sm font-mono font-medium text-primary w-12 text-right">{job.progress}%</span>
-                <Progress value={job.progress} className="flex-1 h-2 bg-secondary" indicatorColor="bg-primary shadow-[0_0_10px_rgba(245,158,11,0.5)]" data-testid="progress-bar" />
-              </div>
+              <span className="text-[9px] font-mono uppercase tracking-[0.25em] text-[hsl(35_50%_60%)]">VU</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Animated waveform window */}
+          <ProcessingWaveform height={110} bars={72} label="Live audio render" />
+
+          {/* Progress bar styled as console fader/track */}
+          <div className="flex items-center gap-4 px-1">
+            <span className="text-sm font-mono font-medium text-[hsl(35_85%_60%)] w-12 text-right tabular-nums">
+              {job.progress}%
+            </span>
+            <div className="flex-1 h-2 rounded-full bg-[hsl(22_22%_6%)] border border-[hsl(35_25%_22%)] overflow-hidden shadow-inner">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-[hsl(35_85%_50%)] via-[hsl(40_90%_60%)] to-[hsl(45_95%_65%)] shadow-[0_0_10px_hsl(35_90%_55%/0.7)]"
+                initial={false}
+                animate={{ width: `${job.progress}%` }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                data-testid="progress-bar"
+              />
+            </div>
+            <div className="hidden sm:flex items-center gap-1" aria-hidden>
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={`h-2 w-2 rounded-full ${
+                    i * 33 <= job.progress
+                      ? "bg-[hsl(35_85%_55%)] shadow-[0_0_4px_hsl(35_85%_55%/0.7)]"
+                      : "bg-[hsl(35_25%_22%)]"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </Frame>
       )}
 
       {isFailed && (
@@ -242,49 +316,57 @@ export function JobPage() {
 
             <CardContent className="p-6">
               {activeTab === "sidebyside" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="waveform-sidebyside">
-                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3" data-testid="waveform-sidebyside">
+                  <Frame variant="subtle" label="Original" contentClassName="p-4">
                     <WaveformPlayer
                       url={originalUrl}
                       label="Original Mix"
                       color="#4b5563"
                       progressColor="#9ca3af"
+                      accent="neutral"
                       data-testid="waveform-original"
                     />
-                  </div>
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
+                  </Frame>
+                  <Frame variant="showcase" label="AI Master" contentClassName="p-4">
                     <WaveformPlayer
                       url={masteredUrl}
                       label="AI Master"
                       color="#92400e"
                       progressColor="#f59e0b"
+                      accent="primary"
                       data-testid="waveform-mastered"
                     />
-                  </div>
+                  </Frame>
                 </div>
               )}
 
               {activeTab === "original" && (
-                <div className="rounded-lg border border-border bg-background/50 p-4" data-testid="waveform-original-solo">
-                  <WaveformPlayer
-                    url={originalUrl}
-                    label="Original Mix"
-                    color="#4b5563"
-                    progressColor="#9ca3af"
-                    data-testid="waveform-original"
-                  />
+                <div className="pt-3" data-testid="waveform-original-solo">
+                  <Frame variant="subtle" label="Original" contentClassName="p-4">
+                    <WaveformPlayer
+                      url={originalUrl}
+                      label="Original Mix"
+                      color="#4b5563"
+                      progressColor="#9ca3af"
+                      accent="neutral"
+                      data-testid="waveform-original"
+                    />
+                  </Frame>
                 </div>
               )}
 
               {activeTab === "mastered" && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]" data-testid="waveform-mastered-solo">
-                  <WaveformPlayer
-                    url={masteredUrl}
-                    label="AI Master"
-                    color="#92400e"
-                    progressColor="#f59e0b"
-                    data-testid="waveform-mastered"
-                  />
+                <div className="pt-3" data-testid="waveform-mastered-solo">
+                  <Frame variant="showcase" label="AI Master" contentClassName="p-4">
+                    <WaveformPlayer
+                      url={masteredUrl}
+                      label="AI Master"
+                      color="#92400e"
+                      progressColor="#f59e0b"
+                      accent="primary"
+                      data-testid="waveform-mastered"
+                    />
+                  </Frame>
                 </div>
               )}
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Activity,
   History as HistoryIcon,
@@ -107,12 +108,48 @@ function UserMenu() {
   );
 }
 
+interface NavLinkProps {
+  href: string;
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  testId: string;
+}
+
+function AnimatedNavLink({ href, active, icon, label, testId }: NavLinkProps) {
+  const reduce = useReducedMotion();
+  return (
+    <Link
+      href={href}
+      className={`relative text-sm font-medium transition-colors hover:text-primary group ${
+        active ? "text-foreground" : "text-muted-foreground"
+      }`}
+      data-testid={testId}
+    >
+      <span className="flex items-center gap-2 py-1">
+        {icon}
+        <span>{label}</span>
+      </span>
+      {active ? (
+        <motion.span
+          layoutId="nav-underline"
+          className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full bg-primary shadow-[0_0_8px_hsl(195_90%_55%/0.7)]"
+          transition={
+            reduce
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 400, damping: 32 }
+          }
+        />
+      ) : (
+        <span className="absolute -bottom-1 left-1/2 right-1/2 h-[2px] rounded-full bg-primary/0 group-hover:bg-primary/40 group-hover:left-2 group-hover:right-2 transition-all duration-300" />
+      )}
+    </Link>
+  );
+}
+
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
-  const navLink = (active: boolean) =>
-    `text-sm font-medium transition-colors hover:text-primary ${
-      active ? "text-foreground" : "text-muted-foreground"
-    }`;
+  const reduce = useReducedMotion();
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background text-foreground dark selection:bg-primary/30">
@@ -120,32 +157,53 @@ export function Layout({ children }: LayoutProps) {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-6 md:gap-10">
             <Link href="/" className="flex items-center space-x-2.5 transition-opacity hover:opacity-80 group" data-testid="link-home">
-              <div className="relative h-9 w-9 rounded-full overflow-hidden ring-1 ring-primary/40 shadow-[0_0_18px_hsl(195_90%_55%/0.45)] group-hover:shadow-[0_0_24px_hsl(195_90%_55%/0.7)] transition-shadow">
+              <motion.div
+                className="relative h-9 w-9 rounded-full overflow-hidden ring-1 ring-primary/40 shadow-[0_0_18px_hsl(195_90%_55%/0.45)] group-hover:shadow-[0_0_24px_hsl(195_90%_55%/0.7)] transition-shadow"
+                whileHover={reduce ? undefined : { rotate: -8, scale: 1.05 }}
+                whileTap={reduce ? undefined : { scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18 }}
+              >
                 <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-cover scale-110" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-full" />
-              </div>
+              </motion.div>
               <span className="hidden font-bold sm:inline-block font-mono tracking-tight text-xl">
                 Puremix<span className="text-primary">.ai</span>
               </span>
             </Link>
             <Show when="signed-in">
               <nav className="flex gap-6">
-                <Link href="/studio" className={navLink(location === "/studio" || location.startsWith("/jobs"))} data-testid="link-nav-upload">
-                  <span className="flex items-center gap-2"><Activity size={16} /><span>Studio</span></span>
-                </Link>
-                <Link href="/history" className={navLink(location === "/history")} data-testid="link-nav-history">
-                  <span className="flex items-center gap-2"><HistoryIcon size={16} /><span>History</span></span>
-                </Link>
-                <Link href="/pricing" className={navLink(location === "/pricing")} data-testid="link-nav-pricing">
-                  <span className="flex items-center gap-2"><CreditCard size={16} /><span>Pricing</span></span>
-                </Link>
+                <AnimatedNavLink
+                  href="/studio"
+                  active={location === "/studio" || location.startsWith("/jobs")}
+                  icon={<Activity size={16} />}
+                  label="Studio"
+                  testId="link-nav-upload"
+                />
+                <AnimatedNavLink
+                  href="/history"
+                  active={location === "/history"}
+                  icon={<HistoryIcon size={16} />}
+                  label="History"
+                  testId="link-nav-history"
+                />
+                <AnimatedNavLink
+                  href="/pricing"
+                  active={location === "/pricing"}
+                  icon={<CreditCard size={16} />}
+                  label="Pricing"
+                  testId="link-nav-pricing"
+                />
               </nav>
             </Show>
             <Show when="signed-out">
               <nav className="flex gap-6">
-                <Link href="/pricing" className={navLink(location === "/pricing")} data-testid="link-nav-pricing-out">
-                  <span className="flex items-center gap-2"><CreditCard size={16} /><span>Pricing</span></span>
-                </Link>
+                <AnimatedNavLink
+                  href="/pricing"
+                  active={location === "/pricing"}
+                  icon={<CreditCard size={16} />}
+                  label="Pricing"
+                  testId="link-nav-pricing-out"
+                />
               </nav>
             </Show>
           </div>

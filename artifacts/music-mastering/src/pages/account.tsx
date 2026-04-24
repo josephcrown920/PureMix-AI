@@ -1,10 +1,13 @@
 import { Link } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMe } from "@/lib/api";
 import { Sparkles, CreditCard, Activity, Loader2, Crown, Zap, Music2 } from "lucide-react";
 import { useUser } from "@clerk/react";
+import { stagger, fadeUp } from "@/lib/motion";
+import { CardCorners } from "@/components/Frame";
 
 const LABEL_NAMES = {
   trial: "Free Trial",
@@ -14,6 +17,7 @@ const LABEL_NAMES = {
 } as const;
 
 export function AccountPage() {
+  const reduce = useReducedMotion();
   const { user } = useUser();
   const { data: me, isLoading } = useMe();
 
@@ -44,15 +48,22 @@ export function AccountPage() {
     : 0;
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-3xl space-y-6">
-      <div>
+    <motion.div
+      className="container mx-auto px-4 py-12 max-w-3xl space-y-6"
+      initial={reduce ? false : "hidden"}
+      animate="visible"
+      variants={stagger}
+    >
+      <motion.div variants={fadeUp}>
         <h1 className="text-3xl font-bold tracking-tight">Account</h1>
         <p className="text-muted-foreground mt-1">
           {user?.primaryEmailAddress?.emailAddress}
         </p>
-      </div>
+      </motion.div>
 
-      <Card>
+      <motion.div variants={fadeUp}>
+      <Card className="relative">
+        <CardCorners />
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             <CreditCard size={20} className="text-primary" /> Plan
@@ -90,8 +101,11 @@ export function AccountPage() {
           </Button>
         </CardContent>
       </Card>
+      </motion.div>
 
-      <Card>
+      <motion.div variants={fadeUp}>
+      <Card className="relative">
+        <CardCorners />
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             <Activity size={20} className="text-primary" /> Activity
@@ -105,6 +119,7 @@ export function AccountPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

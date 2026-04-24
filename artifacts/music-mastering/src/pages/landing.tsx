@@ -1,6 +1,8 @@
 import { Link } from "wouter";
+import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { fadeUp, fadeUpLarge, staggerSlow } from "@/lib/motion";
 import {
   Sparkles,
   Waves,
@@ -56,6 +58,8 @@ function FloatingGear({
 }
 
 export function LandingPage() {
+  const reduce = useReducedMotion();
+  const initial = reduce ? false : "hidden";
   return (
     <div className="flex flex-col">
       {/* Hero */}
@@ -82,9 +86,14 @@ export function LandingPage() {
         <FloatingGear Icon={Music2} className="left-[40%] top-[6%] hidden md:block" delay={2.8} rotate={-4} size={28} />
 
         <div className="container mx-auto px-4 py-20 md:py-28 max-w-6xl relative">
-          <div className="flex flex-col items-center text-center gap-6">
+          <motion.div
+            className="flex flex-col items-center text-center gap-6"
+            initial={initial}
+            animate="visible"
+            variants={staggerSlow}
+          >
             {/* Animated logo halo */}
-            <div className="relative mb-2">
+            <motion.div className="relative mb-2" variants={fadeUpLarge}>
               <div className="absolute inset-0 rounded-full bg-primary/30 blur-2xl animate-glow-pulse" />
               <div className="absolute inset-0 rounded-full border border-primary/30 animate-ring-ping" />
               <div
@@ -95,21 +104,21 @@ export function LandingPage() {
               <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(195_90%_55%/0.55)]">
                 <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-cover scale-110" />
               </div>
-            </div>
+            </motion.div>
 
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 font-mono">
+            <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 font-mono">
               <Sparkles size={12} className="animate-pulse-slow" /> Built for Afrobeats, hip-hop &amp; trap
-            </span>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl">
+            </motion.span>
+            <motion.h1 variants={fadeUpLarge} className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl">
               The AI mastering engine
               <span className="text-primary"> tuned for African music.</span>
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
+            </motion.h1>
+            <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl">
               Drop your Afrobeats, amapiano, hip-hop or trap mix and get a release-ready master in seconds. Preview free. Pay only when you want to download.
-            </p>
+            </motion.p>
 
             {/* Live equalizer */}
-            <div className="flex items-end justify-center gap-1 h-12 mt-2" aria-hidden>
+            <motion.div variants={fadeUp} className="flex items-end justify-center gap-1 h-12 mt-2" aria-hidden>
               {EQUALIZER_BARS.map((_, i) => (
                 <span
                   key={i}
@@ -121,22 +130,34 @@ export function LandingPage() {
                   }}
                 />
               ))}
-            </div>
+            </motion.div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-2">
-              <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(195_90%_55%/0.35)] hover:shadow-[0_0_32px_hsl(195_90%_55%/0.55)] transition-shadow">
-                <Link href="/sign-up" data-testid="btn-cta-signup">
-                  Start mastering free <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 px-8 text-base">
-                <Link href="/pricing" data-testid="btn-cta-pricing">See pricing</Link>
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 mt-2">
+              <motion.div
+                whileHover={reduce ? undefined : { y: -2, scale: 1.02 }}
+                whileTap={reduce ? undefined : { scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18 }}
+              >
+                <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(195_90%_55%/0.35)] hover:shadow-[0_0_32px_hsl(195_90%_55%/0.55)] transition-shadow">
+                  <Link href="/sign-up" data-testid="btn-cta-signup">
+                    Start mastering free <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </motion.div>
+              <motion.div
+                whileHover={reduce ? undefined : { y: -2, scale: 1.02 }}
+                whileTap={reduce ? undefined : { scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18 }}
+              >
+                <Button asChild size="lg" variant="outline" className="h-12 px-8 text-base">
+                  <Link href="/pricing" data-testid="btn-cta-pricing">See pricing</Link>
+                </Button>
+              </motion.div>
+            </motion.div>
+            <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-2">
               1 free trial master. No card required to preview.
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
         </div>
 
         {/* Bottom waveform marquee */}
