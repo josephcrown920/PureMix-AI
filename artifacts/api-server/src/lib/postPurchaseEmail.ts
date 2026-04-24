@@ -7,6 +7,11 @@ import { logger } from "./logger";
  * Find any recently-completed-but-never-emailed jobs for this user that are
  * now download-unlocked, and fire off the master-ready emails.
  * Called from the webhook after a purchase grants a download right.
+ *
+ * Uses an atomic "claim" pattern: each job's `emailSentAt` is set to NOW() in
+ * the SAME query that finds it, so two concurrent triggers (webhook + verify,
+ * or webhook + processor) can never both send the same email. If the email
+ * itself fails, we roll the timestamp back so a future retry can pick it up.
  */
 export async function sendEmailsForRecentlyUnlockedJobs(
   userId: string,
@@ -17,9 +22,12 @@ export async function sendEmailsForRecentlyUnlockedJobs(
     .where(eq(usersTable.id, userId));
   if (!user?.email) return;
 
-  const jobs = await db
-    .select()
-    .from(masteringJobsTable)
+  // Atomic claim: mark all eligible jobs as "sent" up-front and capture them
+  // via RETURNING. Anyone else racing us will see emailSentAt IS NOT NULL.
+  const claimedAt = new Date();
+  const claimedJobs = await db
+    .update(masteringJobsTable)
+    .set({ emailSentAt: claimedAt })
     .where(
       and(
         eq(masteringJobsTable.userId, userId),
@@ -27,9 +35,10 @@ export async function sendEmailsForRecentlyUnlockedJobs(
         eq(masteringJobsTable.downloadUnlocked, true),
         isNull(masteringJobsTable.emailSentAt),
       ),
-    );
+    )
+    .returning();
 
-  for (const job of jobs) {
+  for (const job of claimedJobs) {
     const downloadUrl = buildDownloadUrl(job.id);
     const result = await sendMasterReadyEmail({
       to: user.email,
@@ -37,16 +46,23 @@ export async function sendEmailsForRecentlyUnlockedJobs(
       preset: job.preset,
       downloadUrl,
     });
-    if (result.delivered) {
-      await db
-        .update(masteringJobsTable)
-        .set({ emailSentAt: new Date() })
-        .where(eq(masteringJobsTable.id, job.id));
-    } else {
+    if (!result.delivered) {
       logger.warn(
         { jobId: job.id, reason: result.reason },
-        "Failed to send post-purchase email",
+        "Failed to send post-purchase email; rolling back claim",
       );
+      // Roll back so a future trigger (next purchase, manual retry) picks it
+      // back up. Only roll back if our timestamp is still the one in the DB
+      // (don't clobber a later successful send by another process).
+      await db
+        .update(masteringJobsTable)
+        .set({ emailSentAt: null })
+        .where(
+          and(
+            eq(masteringJobsTable.id, job.id),
+            eq(masteringJobsTable.emailSentAt, claimedAt),
+          ),
+        );
     }
   }
 }

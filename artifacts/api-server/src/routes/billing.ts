@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, masteringJobsTable } from "@workspace/db";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  masteringJobsTable,
+  processedPaymentsTable,
+} from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { PLANS, CURRENCY, type PlanId } from "../lib/plans";
 import { initializeTransaction, verifyTransaction } from "../lib/paystack";
@@ -86,7 +91,7 @@ router.get("/billing/verify", requireAuth, async (req, res): Promise<void> => {
     const jobId = (data.metadata as any)?.jobId as number | undefined;
 
     if (userId && internalPlan) {
-      await applyPurchase(userId, internalPlan, jobId, data);
+      await applyPurchase(userId, internalPlan, jobId, data, reference);
     }
 
     res.json({ success: true, status: "success", plan: internalPlan });
@@ -120,8 +125,27 @@ export async function applyPurchase(
   internalPlan: PlanId,
   jobId: number | undefined,
   txData: any,
+  reference: string,
 ): Promise<void> {
   const customerCode = txData.customer?.customer_code as string | undefined;
+  const amountCents = txData.amount != null ? String(txData.amount) : null;
+
+  // Idempotency guard: try to claim this Paystack reference. If another caller
+  // (verify endpoint vs. webhook) already claimed it, bail out.
+  const claimed = await db
+    .insert(processedPaymentsTable)
+    .values({
+      reference,
+      userId,
+      internalPlan,
+      amountCents,
+    })
+    .onConflictDoNothing()
+    .returning({ reference: processedPaymentsTable.reference });
+  if (claimed.length === 0) {
+    logger.info({ reference, userId }, "Paystack reference already applied; skipping");
+    return;
+  }
 
   if (internalPlan === "lifetime") {
     await db
@@ -138,19 +162,17 @@ export async function applyPurchase(
   }
 
   if (internalPlan === "day") {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    const now = Date.now();
-    const cfg = PLANS.day;
-    const currentExpiry = user?.dayPassExpiresAt
-      ? new Date(user.dayPassExpiresAt).getTime()
-      : 0;
-    const base = Math.max(now, currentExpiry);
-    const newExpiry = new Date(base + (cfg.windowMs ?? 24 * 60 * 60 * 1000));
+    // Atomic 24h extension done in SQL so two concurrent purchases stack
+    // correctly to 48h instead of clobbering each other to 24h.
     await db
       .update(usersTable)
       .set({
         plan: "day",
-        dayPassExpiresAt: newExpiry,
+        dayPassExpiresAt: sql`CASE
+          WHEN ${usersTable.dayPassExpiresAt} IS NOT NULL AND ${usersTable.dayPassExpiresAt} > NOW()
+            THEN ${usersTable.dayPassExpiresAt} + interval '24 hours'
+          ELSE NOW() + interval '24 hours'
+        END`,
         paystackCustomerCode: customerCode ?? undefined,
         updatedAt: new Date(),
       })
@@ -190,13 +212,13 @@ export async function applyPurchase(
     }
   }
 
-  // Generic single-master credit
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  // Generic single-master credit — atomic increment so the idempotency guard
+  // is the single source of truth and we never read-modify-write user.credits.
   await db
     .update(usersTable)
     .set({
-      plan: user?.lifetime ? "lifetime" : "payg",
-      credits: (user?.credits ?? 0) + 1,
+      plan: sql`CASE WHEN ${usersTable.lifetime} THEN 'lifetime' ELSE 'payg' END`,
+      credits: sql`${usersTable.credits} + 1`,
       paystackCustomerCode: customerCode ?? undefined,
       updatedAt: new Date(),
     })

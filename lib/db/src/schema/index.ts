@@ -19,3 +19,4 @@
 
 export * from "./masteringJobs";
 export * from "./users";
+export * from "./processedPayments";

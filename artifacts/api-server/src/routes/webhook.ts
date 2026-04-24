@@ -34,8 +34,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
         const userId = data.metadata?.userId as string | undefined;
         const internalPlan = data.metadata?.internalPlan as PlanId | undefined;
         const jobId = data.metadata?.jobId as number | undefined;
-        if (userId && internalPlan) {
-          await applyPurchase(userId, internalPlan, jobId, data);
+        const reference = data.reference as string | undefined;
+        if (userId && internalPlan && reference) {
+          await applyPurchase(userId, internalPlan, jobId, data, reference);
 
           // Best-effort: trigger an email send if we just unlocked a job that
           // is already complete. The mastering processor handles the normal
