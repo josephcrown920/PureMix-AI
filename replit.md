@@ -1,4 +1,4 @@
-# MasterAI — AI Music Mastering SaaS
+# Puremix.ai — AI Music Mastering SaaS
 
 A SaaS app that takes user audio uploads and returns mastered tracks using a Python audio pipeline. Frontend deploys to Netlify; API + Python worker stay on Replit.
 

@@ -133,7 +133,7 @@ export async function ensurePaystackPlan(
     return envCode;
   }
 
-  const name = `MasterAI ${internalId.toUpperCase()}`;
+  const name = `Puremix.ai ${internalId.toUpperCase()}`;
   const plans = await listPlans();
   const existing = plans.find(
     (p) =>

@@ -16,7 +16,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     id: "free",
     name: "Free",
-    description: "Perfect for trying out MasterAI",
+    description: "Perfect for trying out Puremix.ai",
     monthlyJobLimit: 3,
     priceCents: 0,
     currency: CURRENCY,

@@ -115,7 +115,7 @@ export function Layout({ children }: LayoutProps) {
                 <RadioReceiver size={18} strokeWidth={2.5} />
               </div>
               <span className="hidden font-bold sm:inline-block font-mono tracking-tight text-xl">
-                MasterAI<span className="text-primary">.</span>
+                Puremix<span className="text-primary">.ai</span>
               </span>
             </Link>
             <Show when="signed-in">

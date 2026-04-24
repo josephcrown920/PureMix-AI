@@ -1,4 +1,4 @@
-# Netlify deployment for the MasterAI frontend.
+# Netlify deployment for the Puremix.ai frontend.
 # The API + Python worker stay on Replit; this site talks to it via VITE_API_BASE_URL.
 #
 # Required env vars in the Netlify site settings:
