@@ -43,35 +43,39 @@ const FRONTEND_ORIGINS = (process.env.FRONTEND_ORIGINS ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+const isProd = process.env.NODE_ENV === "production";
 app.use(
   cors({
     credentials: true,
     origin: (origin, cb) => {
       if (!origin) return cb(null, true); // same-origin / curl / mobile
       if (FRONTEND_ORIGINS.includes(origin)) return cb(null, true);
-      // Allow any *.netlify.app preview by default for convenience
       try {
         const host = new URL(origin).hostname;
-        if (host.endsWith(".netlify.app")) return cb(null, true);
         if (host === "localhost" || host === "127.0.0.1") return cb(null, true);
         if (host.endsWith(".replit.dev") || host.endsWith(".repl.co"))
           return cb(null, true);
+        // In dev allow any Netlify preview; in prod require an explicit allow-list.
+        if (!isProd && host.endsWith(".netlify.app")) return cb(null, true);
       } catch {
         /* ignore */
       }
-      return cb(null, true); // permissive in dev; tighten via FRONTEND_ORIGINS in prod
+      if (isProd) {
+        return cb(new Error(`CORS: origin ${origin} not allowed`));
+      }
+      return cb(null, true);
     },
   }),
 );
 
 // Paystack webhook MUST be mounted before express.json so we can verify the
-// HMAC signature against the raw request body.
-app.use("/api", express.raw({ type: "*/*" }), (req, res, next) => {
-  if (req.path === "/webhooks/paystack") {
-    return webhookRouter(req, res, next);
-  }
-  return next();
-});
+// HMAC signature against the raw request body. Scope the raw parser strictly
+// to the webhook path so all other /api routes still get JSON parsing.
+app.use(
+  "/api/webhooks/paystack",
+  express.raw({ type: "*/*" }),
+  webhookRouter,
+);
 
 app.use(cookieParser());
 app.use(express.json());

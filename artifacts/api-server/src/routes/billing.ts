@@ -113,17 +113,25 @@ router.post("/billing/cancel", requireAuth, async (req, res): Promise<void> => {
       code: user.paystackSubscriptionCode,
       token: user.paystackEmailToken,
     });
+    // Don't downgrade immediately — user keeps Pro access until the current
+    // billing period ends. Paystack's `subscription.disable` / `subscription.not_renew`
+    // webhook will trigger the actual plan downgrade when the period closes.
+    // We only clear the subscription handles so the cancel button hides.
     await db
       .update(usersTable)
       .set({
-        plan: user.lifetime ? "lifetime" : "free",
         paystackSubscriptionCode: null,
         paystackEmailToken: null,
-        proRenewsAt: null,
         updatedAt: new Date(),
       })
       .where(eq(usersTable.id, userId));
-    res.json({ success: true });
+    res.json({
+      success: true,
+      message:
+        user.proRenewsAt
+          ? `You'll keep Pro access until ${new Date(user.proRenewsAt).toLocaleDateString()}.`
+          : "Subscription cancelled.",
+    });
   } catch (err: any) {
     logger.error({ err: err?.message }, "Cancel failed");
     res.status(500).json({ error: err?.message ?? "Cancel failed" });

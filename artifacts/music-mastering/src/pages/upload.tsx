@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useCreateMasteringJob, useGetMasteringStats } from "@workspace/api-client-react";
+import { useCreateMasteringJob, useGetMasteringStats, ApiError } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatTime, PRESET_LABELS } from "@/lib/format";
+import { useMe, meQueryKey } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
 
 export function UploadPage() {
@@ -20,6 +23,11 @@ export function UploadPage() {
   
   const createJob = useCreateMasteringJob();
   const { data: stats } = useGetMasteringStats();
+  const { data: me } = useMe();
+  const qc = useQueryClient();
+  const usage = me?.usage;
+  const limitReached =
+    usage?.monthlyJobLimit != null && usage.remaining === 0;
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -97,12 +105,24 @@ export function UploadPage() {
         description: "Your track is now being processed.",
       });
       
+      qc.invalidateQueries({ queryKey: meQueryKey });
       setLocation(`/jobs/${result.id}`);
     } catch (error) {
       console.error("Upload error:", error);
+      if (error instanceof ApiError && error.status === 402) {
+        const data = error.data as { error?: string } | null;
+        toast({
+          title: "Monthly limit reached",
+          description: data?.error ?? "Upgrade your plan to continue mastering.",
+          variant: "destructive",
+        });
+        qc.invalidateQueries({ queryKey: meQueryKey });
+        setLocation("/pricing");
+        return;
+      }
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your file. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error uploading your file. Please try again.",
         variant: "destructive"
       });
     }
@@ -162,7 +182,29 @@ export function UploadPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight mb-2">New Session</h1>
             <p className="text-muted-foreground">Upload your mix to get started. High quality WAV or FLAC recommended.</p>
+            {usage && usage.monthlyJobLimit != null && (
+              <p className="text-xs text-muted-foreground mt-2 font-mono" data-testid="text-usage">
+                {usage.monthlyJobs}/{usage.monthlyJobLimit} masters used this month on the {me?.plan} plan.{" "}
+                <Link href="/pricing" className="text-primary hover:underline">Upgrade</Link>
+              </p>
+            )}
           </div>
+          {limitReached && (
+            <Card className="border-destructive/40 bg-destructive/10">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">You've used all {usage!.monthlyJobLimit} free masters this month.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upgrade to Pro for unlimited masters.
+                  </p>
+                </div>
+                <Button asChild size="sm" data-testid="btn-upgrade-from-limit">
+                  <Link href="/pricing">Upgrade</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className={`border-2 border-dashed transition-all duration-200 overflow-hidden ${
             dragActive ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border/60 bg-card/20 hover:border-border hover:bg-card/40'
@@ -292,7 +334,7 @@ export function UploadPage() {
             <CardFooter className="pt-2 pb-6 px-6">
               <Button 
                 onClick={handleSubmit} 
-                disabled={!file || createJob.isPending} 
+                disabled={!file || createJob.isPending || limitReached} 
                 className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-shadow"
                 data-testid="btn-submit-mastering"
               >

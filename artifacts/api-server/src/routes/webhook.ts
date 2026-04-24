@@ -9,7 +9,7 @@ const router: IRouter = Router();
 
 // IMPORTANT: This route must be mounted with express.raw({ type: "*/*" }) BEFORE
 // express.json() so we can verify the HMAC signature against the raw body.
-router.post("/webhooks/paystack", async (req: Request, res: Response): Promise<void> => {
+router.post("/", async (req: Request, res: Response): Promise<void> => {
   const raw = req.body as Buffer;
   const sig = req.header("x-paystack-signature");
   if (!verifyWebhookSignature(raw, sig)) {

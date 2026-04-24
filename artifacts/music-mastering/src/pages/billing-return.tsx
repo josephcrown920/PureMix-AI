@@ -23,10 +23,10 @@ export function BillingReturnPage() {
     }
     (async () => {
       try {
-        const result: any = await getBillingVerify({ reference });
+        const result = await verifyPayment(reference);
         if (result?.success) {
           setStatus("success");
-          await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
+          await qc.invalidateQueries({ queryKey: meQueryKey });
         } else {
           setStatus("failed");
           setError(`Payment status: ${result?.status ?? "unknown"}`);
