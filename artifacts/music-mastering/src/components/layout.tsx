@@ -1,7 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import {
-  RadioReceiver,
   Activity,
   History as HistoryIcon,
   CreditCard,
@@ -9,6 +8,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
+import puremixLogo from "@/assets/puremix-logo.jpeg";
 import { Show, useClerk, useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,9 +110,10 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-6 md:gap-10">
-            <Link href="/" className="flex items-center space-x-2 transition-opacity hover:opacity-80" data-testid="link-home">
-              <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-[0_0_15px_hsl(195_90%_55%/0.5)]">
-                <RadioReceiver size={18} strokeWidth={2.5} />
+            <Link href="/" className="flex items-center space-x-2.5 transition-opacity hover:opacity-80 group" data-testid="link-home">
+              <div className="relative h-9 w-9 rounded-full overflow-hidden ring-1 ring-primary/40 shadow-[0_0_18px_hsl(195_90%_55%/0.45)] group-hover:shadow-[0_0_24px_hsl(195_90%_55%/0.7)] transition-shadow">
+                <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-cover scale-110" />
+                <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-full" />
               </div>
               <span className="hidden font-bold sm:inline-block font-mono tracking-tight text-xl">
                 Puremix<span className="text-primary">.ai</span>
