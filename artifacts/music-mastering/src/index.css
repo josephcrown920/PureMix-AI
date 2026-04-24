@@ -1,8 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+@layer theme, base, clerk, components, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@clerk/themes/shadcn.css";
 @plugin "@tailwindcss/typography";
+
+/* Clerk dark surface tweaks for the Ocean theme */
+.cl-formFieldInput::placeholder { color: hsl(200 15% 55%); opacity: 1; }
+.cl-formFieldInput:focus { border-color: hsl(195 90% 55%); }
 
 @custom-variant dark (&:is(.dark *));
 

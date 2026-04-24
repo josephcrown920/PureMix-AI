@@ -1,9 +1,9 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { Router, type IRouter } from "express";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { db, masteringJobsTable } from "@workspace/db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { db, masteringJobsTable, usersTable } from "@workspace/db";
+import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { processMasteringJob } from "../../lib/masteringProcessor";
 import {
@@ -12,22 +12,20 @@ import {
   GetInputFileParams,
   GetOutputFileParams,
 } from "@workspace/api-zod";
-import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
+import { requireAuth } from "../../middlewares/requireAuth";
+import { getJobLimit, PLANS } from "../../lib/plans";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router: IRouter = Router();
 
 const UPLOAD_DIR = path.join(__dirname, "..", "..", "..", "uploads", "input");
-
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
+  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
@@ -37,15 +35,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a"];
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error(`Unsupported file type: ${ext}. Allowed: ${allowed.join(", ")}`));
-    }
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error(`Unsupported file type: ${ext}. Allowed: ${allowed.join(", ")}`));
   },
 });
 
@@ -58,51 +53,36 @@ const PRESET_LUFS: Record<string, number> = {
   custom: -14,
 };
 
-const SESSION_COOKIE = "masterai_session";
-const SESSION_MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days
-
-function getOrCreateSessionId(req: Request, res: Response): string {
-  const existing = req.cookies?.[SESSION_COOKIE] as string | undefined;
-  if (existing && existing.length > 0) return existing;
-
-  const sessionId = uuidv4();
-  res.cookie(SESSION_COOKIE, sessionId, {
-    httpOnly: true,
-    maxAge: SESSION_MAX_AGE,
-    sameSite: "lax",
-  });
-  return sessionId;
+function jobToJson(j: typeof masteringJobsTable.$inferSelect) {
+  return {
+    id: j.id,
+    filename: j.filename,
+    originalFilename: j.originalFilename,
+    preset: j.preset,
+    status: j.status,
+    progress: j.progress,
+    targetLufs: j.targetLufs,
+    measuredInputLufs: j.measuredInputLufs,
+    measuredOutputLufs: j.measuredOutputLufs,
+    errorMessage: j.errorMessage,
+    createdAt: j.createdAt.toISOString(),
+    completedAt: j.completedAt?.toISOString() ?? null,
+  };
 }
 
-// GET /mastering/jobs
-router.get("/mastering/jobs", async (req, res): Promise<void> => {
-  const sessionId = getOrCreateSessionId(req, res);
+// ALL mastering routes require auth
+router.use("/mastering", requireAuth);
 
+router.get("/mastering/jobs", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const jobs = await db
     .select()
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.sessionId, sessionId))
+    .where(eq(masteringJobsTable.userId, userId))
     .orderBy(desc(masteringJobsTable.createdAt));
-
-  res.json(
-    jobs.map((j) => ({
-      id: j.id,
-      filename: j.filename,
-      originalFilename: j.originalFilename,
-      preset: j.preset,
-      status: j.status,
-      progress: j.progress,
-      targetLufs: j.targetLufs,
-      measuredInputLufs: j.measuredInputLufs,
-      measuredOutputLufs: j.measuredOutputLufs,
-      errorMessage: j.errorMessage,
-      createdAt: j.createdAt.toISOString(),
-      completedAt: j.completedAt?.toISOString() ?? null,
-    }))
-  );
+  res.json(jobs.map(jobToJson));
 });
 
-// POST /mastering/jobs
 router.post(
   "/mastering/jobs",
   upload.single("audio"),
@@ -111,8 +91,37 @@ router.post(
       res.status(400).json({ error: "No audio file uploaded" });
       return;
     }
+    const userId = req.userId!;
 
-    const sessionId = getOrCreateSessionId(req, res);
+    // Enforce monthly job limit based on user's plan.
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const plan = (user?.plan ?? "free") as keyof typeof PLANS;
+    const limit = getJobLimit(plan);
+    if (limit != null) {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(masteringJobsTable)
+        .where(
+          and(
+            eq(masteringJobsTable.userId, userId),
+            gte(masteringJobsTable.createdAt, monthStart),
+          ),
+        );
+      if ((count ?? 0) >= limit) {
+        // Clean up uploaded file
+        try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+        res.status(402).json({
+          error: `Monthly limit reached (${limit} jobs on ${plan} plan). Upgrade for unlimited masters.`,
+          code: "PLAN_LIMIT",
+          plan,
+          limit,
+        });
+        return;
+      }
+    }
 
     const preset = req.body.preset as string;
     if (!VALID_PRESETS.includes(preset as (typeof VALID_PRESETS)[number])) {
@@ -128,13 +137,12 @@ router.post(
         return;
       }
     }
-
     const effectiveLufs = targetLufs ?? PRESET_LUFS[preset] ?? -14;
 
     const [job] = await db
       .insert(masteringJobsTable)
       .values({
-        sessionId,
+        userId,
         filename: req.file.filename,
         originalFilename: req.file.originalname,
         inputPath: req.file.path,
@@ -145,118 +153,57 @@ router.post(
       })
       .returning();
 
-    res.status(201).json({
-      id: job.id,
-      filename: job.filename,
-      originalFilename: job.originalFilename,
-      preset: job.preset,
-      status: job.status,
-      progress: job.progress,
-      targetLufs: job.targetLufs,
-      measuredInputLufs: job.measuredInputLufs,
-      measuredOutputLufs: job.measuredOutputLufs,
-      errorMessage: job.errorMessage,
-      createdAt: job.createdAt.toISOString(),
-      completedAt: null,
-    });
+    res.status(201).json(jobToJson(job));
 
-    // Start processing in the background (non-blocking)
     processMasteringJob(job.id).catch((err: unknown) => {
       logger.error({ err, jobId: job.id }, "Background mastering job failed");
     });
-  }
+  },
 );
 
-// GET /mastering/jobs/:id
 router.get("/mastering/jobs/:id", async (req, res): Promise<void> => {
   const params = GetMasteringJobParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
-  const sessionId = getOrCreateSessionId(req, res);
-
+  const userId = req.userId!;
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.id, params.data.id),
-        eq(masteringJobsTable.sessionId, sessionId)
-      )
-    );
-
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
   if (!job) {
     res.status(404).json({ error: "Mastering job not found" });
     return;
   }
-
-  res.json({
-    id: job.id,
-    filename: job.filename,
-    originalFilename: job.originalFilename,
-    preset: job.preset,
-    status: job.status,
-    progress: job.progress,
-    targetLufs: job.targetLufs,
-    measuredInputLufs: job.measuredInputLufs,
-    measuredOutputLufs: job.measuredOutputLufs,
-    errorMessage: job.errorMessage,
-    createdAt: job.createdAt.toISOString(),
-    completedAt: job.completedAt?.toISOString() ?? null,
-  });
+  res.json(jobToJson(job));
 });
 
-// DELETE /mastering/jobs/:id
 router.delete("/mastering/jobs/:id", async (req, res): Promise<void> => {
   const params = DeleteMasteringJobParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
-  const sessionId = getOrCreateSessionId(req, res);
-
+  const userId = req.userId!;
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.id, params.data.id),
-        eq(masteringJobsTable.sessionId, sessionId)
-      )
-    );
-
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
   if (!job) {
     res.status(404).json({ error: "Mastering job not found" });
     return;
   }
-
-  // Clean up files
-  if (job.inputPath && fs.existsSync(job.inputPath)) {
-    fs.unlinkSync(job.inputPath);
-  }
-  if (job.outputPath && fs.existsSync(job.outputPath)) {
-    fs.unlinkSync(job.outputPath);
-  }
-
+  if (job.inputPath && fs.existsSync(job.inputPath)) fs.unlinkSync(job.inputPath);
+  if (job.outputPath && fs.existsSync(job.outputPath)) fs.unlinkSync(job.outputPath);
   await db
     .delete(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.id, params.data.id),
-        eq(masteringJobsTable.sessionId, sessionId)
-      )
-    );
-
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
   res.sendStatus(204);
 });
 
-// GET /mastering/stats
 router.get("/mastering/stats", async (req, res): Promise<void> => {
-  const sessionId = getOrCreateSessionId(req, res);
-
+  const userId = req.userId!;
   const [stats] = await db
     .select({
       totalJobs: sql<number>`count(*)::int`,
@@ -266,8 +213,7 @@ router.get("/mastering/stats", async (req, res): Promise<void> => {
       avgProcessingTimeMs: sql<number | null>`avg(extract(epoch from (completed_at - processing_started_at)) * 1000) filter (where status = 'completed' and processing_started_at is not null)`,
     })
     .from(masteringJobsTable)
-    .where(eq(masteringJobsTable.sessionId, sessionId));
-
+    .where(eq(masteringJobsTable.userId, userId));
   res.json({
     totalJobs: stats.totalJobs ?? 0,
     completedJobs: stats.completedJobs ?? 0,
@@ -277,36 +223,21 @@ router.get("/mastering/stats", async (req, res): Promise<void> => {
   });
 });
 
-// GET /mastering/files/:id/input
 router.get("/mastering/files/:id/input", async (req, res): Promise<void> => {
   const params = GetInputFileParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
-  const sessionId = getOrCreateSessionId(req, res);
-
+  const userId = req.userId!;
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.id, params.data.id),
-        eq(masteringJobsTable.sessionId, sessionId)
-      )
-    );
-
-  if (!job || !job.inputPath) {
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
+  if (!job || !job.inputPath || !fs.existsSync(job.inputPath)) {
     res.status(404).json({ error: "File not found" });
     return;
   }
-
-  if (!fs.existsSync(job.inputPath)) {
-    res.status(404).json({ error: "File not found on disk" });
-    return;
-  }
-
   const ext = path.extname(job.originalFilename).toLowerCase();
   const mimeTypes: Record<string, string> = {
     ".mp3": "audio/mpeg",
@@ -316,58 +247,30 @@ router.get("/mastering/files/:id/input", async (req, res): Promise<void> => {
     ".ogg": "audio/ogg",
     ".m4a": "audio/mp4",
   };
-
-  const contentType = mimeTypes[ext] || "audio/mpeg";
-  res.setHeader("Content-Type", contentType);
-  res.setHeader(
-    "Content-Disposition",
-    `inline; filename="${encodeURIComponent(job.originalFilename)}"`
-  );
-
-  const stream = fs.createReadStream(job.inputPath);
-  stream.pipe(res);
+  res.setHeader("Content-Type", mimeTypes[ext] || "audio/mpeg");
+  res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(job.originalFilename)}"`);
+  fs.createReadStream(job.inputPath).pipe(res);
 });
 
-// GET /mastering/files/:id/output
 router.get("/mastering/files/:id/output", async (req, res): Promise<void> => {
   const params = GetOutputFileParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-
-  const sessionId = getOrCreateSessionId(req, res);
-
+  const userId = req.userId!;
   const [job] = await db
     .select()
     .from(masteringJobsTable)
-    .where(
-      and(
-        eq(masteringJobsTable.id, params.data.id),
-        eq(masteringJobsTable.sessionId, sessionId)
-      )
-    );
-
-  if (!job || !job.outputPath) {
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
+  if (!job || !job.outputPath || !fs.existsSync(job.outputPath)) {
     res.status(404).json({ error: "Mastered file not ready" });
     return;
   }
-
-  if (!fs.existsSync(job.outputPath)) {
-    res.status(404).json({ error: "Mastered file not found on disk" });
-    return;
-  }
-
   const masteredFilename = `mastered_${job.originalFilename.replace(/\.[^.]+$/, "")}.wav`;
-
   res.setHeader("Content-Type", "audio/wav");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(masteredFilename)}"`
-  );
-
-  const stream = fs.createReadStream(job.outputPath);
-  stream.pipe(res);
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(masteredFilename)}"`);
+  fs.createReadStream(job.outputPath).pipe(res);
 });
 
 export default router;

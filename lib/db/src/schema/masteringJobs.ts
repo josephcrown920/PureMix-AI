@@ -4,7 +4,8 @@ import { z } from "zod/v4";
 
 export const masteringJobsTable = pgTable("mastering_jobs", {
   id: serial("id").primaryKey(),
-  sessionId: text("session_id").notNull(),
+  sessionId: text("session_id"),
+  userId: text("user_id"),
   filename: text("filename").notNull(),
   originalFilename: text("original_filename").notNull(),
   inputPath: text("input_path").notNull(),

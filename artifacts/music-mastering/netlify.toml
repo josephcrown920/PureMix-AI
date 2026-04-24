@@ -1,0 +1,22 @@
+# Netlify deployment for the MasterAI frontend.
+# The API + Python worker stay on Replit; this site talks to it via VITE_API_BASE_URL.
+#
+# Required env vars in the Netlify site settings:
+#   VITE_CLERK_PUBLISHABLE_KEY  (from Replit secrets / Clerk dashboard)
+#   VITE_PAYSTACK_PUBLIC_KEY    (optional — only needed if doing inline checkout)
+#   VITE_API_BASE_URL           (e.g. https://your-repl-name.username.replit.dev)
+
+[build]
+  base    = "."
+  command = "corepack enable && corepack prepare pnpm@10.26.1 --activate && pnpm install --frozen-lockfile=false && pnpm --filter @workspace/music-mastering run build"
+  publish = "artifacts/music-mastering/dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--version"   # prevent Netlify from auto-running npm install
+
+# SPA fallback so client-side routing works.
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
