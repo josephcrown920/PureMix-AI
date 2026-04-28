@@ -50,6 +50,8 @@ export interface MasteringJob {
   /** @nullable */
   completedAt: string | null;
   downloadUnlocked: boolean;
+  /** @nullable */
+  unlockMode: string | null;
 }
 
 export interface MasteringStats {

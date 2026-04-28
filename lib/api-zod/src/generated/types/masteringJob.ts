@@ -27,4 +27,7 @@ export interface MasteringJob {
   createdAt: Date;
   /** @nullable */
   completedAt: Date | null;
+  downloadUnlocked: boolean;
+  /** @nullable */
+  unlockMode: string | null;
 }

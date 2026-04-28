@@ -232,6 +232,12 @@ components:
         completedAt:
           type: ["string", "null"]
           format: date-time
+        downloadUnlocked:
+          type: boolean
+          description: Whether the mastered file is available for download
+        unlockMode:
+          type: ["string", "null"]
+          description: The mode by which the download was unlocked (lifetime, day, credit, or null)
       required:
         - id
         - filename
@@ -245,6 +251,8 @@ components:
         - errorMessage
         - createdAt
         - completedAt
+        - downloadUnlocked
+        - unlockMode
 
     MasteringStats:
       type: object
