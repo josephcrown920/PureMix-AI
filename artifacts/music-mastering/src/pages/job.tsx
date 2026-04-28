@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { motion, useReducedMotion } from "framer-motion";
 import { useGetMasteringJob, getGetMasteringJobQueryKey, getGetInputFileUrl, getGetOutputFileUrl } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles, Lock, Mail, Loader2, Music2, Zap, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { postCheckout, type PlanId } from "@/lib/api";
@@ -13,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WaveformPlayer } from "@/components/WaveformPlayer";
 import { Frame } from "@/components/Frame";
 import { ProcessingWaveform } from "@/components/ProcessingWaveform";
+import { buttonTap, buttonHover } from "@/lib/motion";
 
 const PROCESSING_STAGES = [
   { threshold: 0, label: "Initializing engine...", icon: Disc },
@@ -229,228 +229,251 @@ export function JobPage() {
 
       {isCompleted && (
         <div className="grid gap-6">
-          <Card className="border-emerald-500/20 bg-card overflow-hidden">
-            <div className="h-1 w-full bg-emerald-500"></div>
-            <CardHeader className="pb-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-emerald-500">
-                    <CheckCircle2 className="h-5 w-5" /> Master Complete
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Your track has been professionally mastered and is ready.
-                  </CardDescription>
-                </div>
-                {job.downloadUnlocked ? (
-                  <Button asChild size="lg" className="font-bold shadow-[0_0_15px_hsl(195_90%_55%/0.3)] hover:shadow-[0_0_25px_hsl(195_90%_55%/0.5)] transition-shadow">
-                    <a href={`${masteredUrl}${masteredUrl.includes("?") ? "&" : "?"}download=1`} download={`Mastered_${job.originalFilename}`} data-testid="btn-download">
-                      <Download className="mr-2 h-5 w-5" /> Download WAV
-                    </a>
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-sm font-medium" data-testid="badge-preview-only">
-                    <Lock size={14} /> Preview only — pay to download
-                  </div>
-                )}
+          {/* Master Complete — showcase frame */}
+          <Frame
+            variant="showcase"
+            label="Master Complete"
+            badge={
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-950/60 border border-emerald-500/40 text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400">
+                <span className={`h-1.5 w-1.5 rounded-full bg-emerald-400 ${reduce ? "" : "animate-pulse"}`} />
+                Ready
+              </span>
+            }
+            contentClassName="p-6 flex flex-col gap-5"
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="text-muted-foreground text-sm">
+                  Your track has been professionally mastered and is ready.
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-border bg-background p-4 flex justify-between items-center">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Input Loudness</span>
-                    <span className="text-lg font-mono">{job.measuredInputLufs?.toFixed(1) || "--"} LUFS</span>
-                  </div>
-                  <AudioLines className="text-muted-foreground/30 h-8 w-8" />
+              {job.downloadUnlocked ? (
+                <motion.a
+                  href={`${masteredUrl}${masteredUrl.includes("?") ? "&" : "?"}download=1`}
+                  download={`Mastered_${job.originalFilename}`}
+                  data-testid="btn-download"
+                  whileHover={reduce ? undefined : { ...buttonHover, scale: 1.02 }}
+                  whileTap={reduce ? undefined : buttonTap}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm bg-primary text-primary-foreground shadow-[0_0_15px_hsl(195_90%_55%/0.3)] hover:shadow-[0_0_28px_hsl(195_90%_55%/0.55)] transition-shadow"
+                >
+                  <Download className="h-5 w-5" /> Download WAV
+                </motion.a>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-400 text-sm font-medium" data-testid="badge-preview-only">
+                  <Lock size={14} /> Preview only — pay to download
                 </div>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex justify-between items-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-primary/10 pointer-events-none"></div>
-                  <div className="flex flex-col relative z-10">
-                    <span className="text-xs text-primary uppercase font-bold tracking-wider">Master Loudness</span>
-                    <span className="text-lg font-mono text-primary font-bold">{job.measuredOutputLufs?.toFixed(1) || "--"} LUFS</span>
-                  </div>
-                  <div className="flex flex-col text-right relative z-10">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Target</span>
-                    <span className="text-sm font-mono text-muted-foreground">{job.targetLufs || "--"}</span>
-                  </div>
+              )}
+            </div>
+
+            {/* Metric panels */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Frame variant="subtle" label="Input loudness" contentClassName="p-4 flex justify-between items-center" animate={false}>
+                <div className="flex flex-col">
+                  <span className="text-lg font-mono">{job.measuredInputLufs?.toFixed(1) || "--"} LUFS</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <AudioLines className="text-muted-foreground/30 h-8 w-8" />
+              </Frame>
+              <Frame variant="showcase" label="Master loudness" contentClassName="p-4 flex justify-between items-center" animate={false}>
+                <div className="flex flex-col">
+                  <span className="text-lg font-mono text-primary font-bold">{job.measuredOutputLufs?.toFixed(1) || "--"} LUFS</span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Target</span>
+                  <span className="text-sm font-mono text-muted-foreground">{job.targetLufs || "--"}</span>
+                </div>
+              </Frame>
+            </div>
+          </Frame>
 
           {/* A/B Waveform Comparison */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-4 border-b border-border/50">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <AudioLines className="h-5 w-5 text-primary" />
-                  A/B Waveform Comparison
-                </CardTitle>
-                <div className="flex items-center p-1 bg-background rounded-md border border-border text-xs font-medium">
-                  <button
-                    className={`px-3 py-1 rounded transition-colors ${activeTab === "sidebyside" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setActiveTab("sidebyside")}
-                    data-testid="tab-sidebyside"
-                  >
-                    Side by Side
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded transition-colors ${activeTab === "original" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setActiveTab("original")}
-                    data-testid="tab-original"
-                  >
-                    Original
-                  </button>
-                  <button
-                    className={`px-3 py-1 rounded transition-colors ${activeTab === "mastered" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={() => setActiveTab("mastered")}
-                    data-testid="tab-mastered"
-                  >
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" /> Mastered
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-6">
-              {activeTab === "sidebyside" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3" data-testid="waveform-sidebyside">
-                  <Frame variant="subtle" label="Original" contentClassName="p-4">
-                    <WaveformPlayer
-                      url={originalUrl}
-                      label="Original Mix"
-                      color="#4b5563"
-                      progressColor="#9ca3af"
-                      accent="neutral"
-                      data-testid="waveform-original"
-                    />
-                  </Frame>
-                  <Frame variant="showcase" label="AI Master" contentClassName="p-4">
-                    <WaveformPlayer
-                      url={masteredUrl}
-                      label="AI Master"
-                      color="#92400e"
-                      progressColor="#f59e0b"
-                      accent="primary"
-                      data-testid="waveform-mastered"
-                    />
-                  </Frame>
-                </div>
-              )}
-
-              {activeTab === "original" && (
-                <div className="pt-3" data-testid="waveform-original-solo">
-                  <Frame variant="subtle" label="Original" contentClassName="p-4">
-                    <WaveformPlayer
-                      url={originalUrl}
-                      label="Original Mix"
-                      color="#4b5563"
-                      progressColor="#9ca3af"
-                      accent="neutral"
-                      data-testid="waveform-original"
-                    />
-                  </Frame>
-                </div>
-              )}
-
-              {activeTab === "mastered" && (
-                <div className="pt-3" data-testid="waveform-mastered-solo">
-                  <Frame variant="showcase" label="AI Master" contentClassName="p-4">
-                    <WaveformPlayer
-                      url={masteredUrl}
-                      label="AI Master"
-                      color="#92400e"
-                      progressColor="#f59e0b"
-                      accent="primary"
-                      data-testid="waveform-mastered"
-                    />
-                  </Frame>
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground/60 mt-4 text-center">
-                Click on the waveform to seek • Play both tracks to compare the difference
+          <Frame variant="subtle" label="A/B Comparison" contentClassName="p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <AudioLines className="h-4 w-4 text-primary" />
+                A/B Waveform Comparison
               </p>
-            </CardContent>
-          </Card>
+              <div className="flex items-center p-1 bg-background rounded-md border border-border text-xs font-medium">
+                <button
+                  className={`px-3 py-1 rounded transition-colors ${activeTab === "sidebyside" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setActiveTab("sidebyside")}
+                  data-testid="tab-sidebyside"
+                >
+                  Side by Side
+                </button>
+                <button
+                  className={`px-3 py-1 rounded transition-colors ${activeTab === "original" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setActiveTab("original")}
+                  data-testid="tab-original"
+                >
+                  Original
+                </button>
+                <button
+                  className={`px-3 py-1 rounded transition-colors ${activeTab === "mastered" ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setActiveTab("mastered")}
+                  data-testid="tab-mastered"
+                >
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Mastered
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {activeTab === "sidebyside" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" data-testid="waveform-sidebyside">
+                <Frame variant="subtle" label="Original" contentClassName="p-4">
+                  <WaveformPlayer
+                    url={originalUrl}
+                    label="Original Mix"
+                    color="#4b5563"
+                    progressColor="#9ca3af"
+                    accent="neutral"
+                    data-testid="waveform-original"
+                  />
+                </Frame>
+                <Frame variant="showcase" label="AI Master" contentClassName="p-4">
+                  <WaveformPlayer
+                    url={masteredUrl}
+                    label="AI Master"
+                    color="#92400e"
+                    progressColor="#f59e0b"
+                    accent="primary"
+                    data-testid="waveform-mastered"
+                  />
+                </Frame>
+              </div>
+            )}
+
+            {activeTab === "original" && (
+              <div data-testid="waveform-original-solo">
+                <Frame variant="subtle" label="Original" contentClassName="p-4">
+                  <WaveformPlayer
+                    url={originalUrl}
+                    label="Original Mix"
+                    color="#4b5563"
+                    progressColor="#9ca3af"
+                    accent="neutral"
+                    data-testid="waveform-original"
+                  />
+                </Frame>
+              </div>
+            )}
+
+            {activeTab === "mastered" && (
+              <div data-testid="waveform-mastered-solo">
+                <Frame variant="showcase" label="AI Master" contentClassName="p-4">
+                  <WaveformPlayer
+                    url={masteredUrl}
+                    label="AI Master"
+                    color="#92400e"
+                    progressColor="#f59e0b"
+                    accent="primary"
+                    data-testid="waveform-mastered"
+                  />
+                </Frame>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground/60 mt-4 text-center">
+              Click on the waveform to seek • Play both tracks to compare the difference
+            </p>
+          </Frame>
 
           {!job.downloadUnlocked && (
-            <Card className="border-primary/40 bg-gradient-to-br from-primary/5 to-transparent" data-testid="paywall-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock size={18} className="text-primary" /> Unlock the download
-                </CardTitle>
-                <CardDescription>
+            <Frame
+              variant="showcase"
+              label="Unlock download"
+              badge={
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30 text-[10px] font-mono uppercase tracking-[0.2em] text-primary">
+                  <Lock size={8} /> Locked
+                </span>
+              }
+              contentClassName="p-6 flex flex-col gap-5"
+              data-testid="paywall-card"
+            >
+              <div>
+                <p className="text-muted-foreground text-sm">
                   Your master is ready to preview. Pick an option below to download the high-resolution WAV and have it emailed to you.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid sm:grid-cols-3 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-auto flex flex-col items-start gap-1 p-4 text-left border-border/60 hover:border-primary/60"
-                  onClick={() => startUnlock("single")}
-                  disabled={unlocking !== null}
-                  data-testid="btn-unlock-single"
+                </p>
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <motion.div
+                  whileHover={reduce ? undefined : buttonHover}
+                  whileTap={reduce ? undefined : buttonTap}
                 >
-                  {unlocking === "single" ? (
-                    <Loader2 className="h-4 w-4 animate-spin self-center" />
-                  ) : (
-                    <>
-                      <span className="flex items-center gap-2 text-sm font-bold"><Music2 size={14} /> Just this one</span>
-                      <span className="text-2xl font-mono font-bold">$2</span>
-                      <span className="text-[11px] text-muted-foreground">Unlock + email this master</span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  className="h-auto flex flex-col items-start gap-1 p-4 text-left shadow-[0_0_18px_hsl(195_90%_55%/0.25)]"
-                  onClick={() => startUnlock("day")}
-                  disabled={unlocking !== null}
-                  data-testid="btn-unlock-day"
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto flex flex-col items-start gap-1 p-4 text-left border-border/60 hover:border-primary/60"
+                    onClick={() => startUnlock("single")}
+                    disabled={unlocking !== null}
+                    data-testid="btn-unlock-single"
+                  >
+                    {unlocking === "single" ? (
+                      <Loader2 className="h-4 w-4 animate-spin self-center" />
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-2 text-sm font-bold"><Music2 size={14} /> Just this one</span>
+                        <span className="text-2xl font-mono font-bold">$2</span>
+                        <span className="text-[11px] text-muted-foreground">Unlock + email this master</span>
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+                <motion.div
+                  whileHover={reduce ? undefined : buttonHover}
+                  whileTap={reduce ? undefined : buttonTap}
                 >
-                  {unlocking === "day" ? (
-                    <Loader2 className="h-4 w-4 animate-spin self-center" />
-                  ) : (
-                    <>
-                      <span className="flex items-center gap-2 text-sm font-bold"><Zap size={14} /> 24-hour pass</span>
-                      <span className="text-2xl font-mono font-bold">$10</span>
-                      <span className="text-[11px] opacity-80">Unlimited masters &amp; downloads</span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto flex flex-col items-start gap-1 p-4 text-left border-amber-500/40 hover:border-amber-500/80 hover:bg-amber-500/10"
-                  onClick={() => startUnlock("lifetime")}
-                  disabled={unlocking !== null}
-                  data-testid="btn-unlock-lifetime"
+                  <Button
+                    className="w-full h-auto flex flex-col items-start gap-1 p-4 text-left shadow-[0_0_18px_hsl(195_90%_55%/0.25)]"
+                    onClick={() => startUnlock("day")}
+                    disabled={unlocking !== null}
+                    data-testid="btn-unlock-day"
+                  >
+                    {unlocking === "day" ? (
+                      <Loader2 className="h-4 w-4 animate-spin self-center" />
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-2 text-sm font-bold"><Zap size={14} /> 24-hour pass</span>
+                        <span className="text-2xl font-mono font-bold">$10</span>
+                        <span className="text-[11px] opacity-80">Unlimited masters &amp; downloads</span>
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+                <motion.div
+                  whileHover={reduce ? undefined : buttonHover}
+                  whileTap={reduce ? undefined : buttonTap}
                 >
-                  {unlocking === "lifetime" ? (
-                    <Loader2 className="h-4 w-4 animate-spin self-center" />
-                  ) : (
-                    <>
-                      <span className="flex items-center gap-2 text-sm font-bold text-amber-400"><Crown size={14} /> Lifetime</span>
-                      <span className="text-2xl font-mono font-bold">$200</span>
-                      <span className="text-[11px] text-muted-foreground">Forever, all masters</span>
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-              <CardContent className="pt-0 pb-6 text-xs text-muted-foreground flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto flex flex-col items-start gap-1 p-4 text-left border-amber-500/40 hover:border-amber-500/80 hover:bg-amber-500/10"
+                    onClick={() => startUnlock("lifetime")}
+                    disabled={unlocking !== null}
+                    data-testid="btn-unlock-lifetime"
+                  >
+                    {unlocking === "lifetime" ? (
+                      <Loader2 className="h-4 w-4 animate-spin self-center" />
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-2 text-sm font-bold text-amber-400"><Crown size={14} /> Lifetime</span>
+                        <span className="text-2xl font-mono font-bold">$200</span>
+                        <span className="text-[11px] text-muted-foreground">Forever, all masters</span>
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
                 <Mail size={12} /> After payment we'll email the WAV to your account email and unlock the download here.
-              </CardContent>
-            </Card>
+              </p>
+            </Frame>
           )}
 
           {job.downloadUnlocked && (
-            <Card className="border-emerald-500/30 bg-emerald-500/5" data-testid="email-card">
-              <CardContent className="p-4 flex items-center gap-3 text-sm">
-                <Mail size={16} className="text-emerald-400" />
-                <span>We've also emailed a download link to your account email.</span>
-              </CardContent>
-            </Card>
+            <Frame variant="subtle" contentClassName="p-4 flex items-center gap-3 text-sm" data-testid="email-card">
+              <Mail size={16} className="text-emerald-400" />
+              <span>We've also emailed a download link to your account email.</span>
+            </Frame>
           )}
         </div>
       )}
