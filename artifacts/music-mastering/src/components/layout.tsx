@@ -9,7 +9,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
-import puremixLogo from "@/assets/puremix-logo.jpeg";
+const puremixLogo = "/puremix-logo-new.png";
 import { Show, useClerk, useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

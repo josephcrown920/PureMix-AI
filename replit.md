@@ -1,57 +1,77 @@
 # Puremix.ai — AI Music Mastering SaaS
 
-A SaaS app that takes user audio uploads and returns mastered tracks using a Python audio pipeline. Frontend deploys to Netlify; API + Python worker stay on Replit.
+Afrobeats-focused AI mastering SaaS. Upload an audio track, get a release-ready master in seconds. Preview free; pay to download.
 
 ## Architecture
 
-- **artifacts/music-mastering** — React + Vite frontend (Ocean dark theme)
-- **artifacts/api-server** — Express API server, also proxies to Vite in dev and serves static frontend in prod
-- **artifacts/api-server/src/lib/audioMastering.py** — Python worker invoked by `masteringProcessor.ts`
-- **lib/db** — Shared Drizzle schema (Postgres). Tables: `users`, `mastering_jobs`
-- **lib/api-client-react** — Generated API client (orval) + customFetch with bearer-token support
+- **artifacts/music-mastering** — React + Vite frontend (dark theme, Framer Motion animations)
+- **artifacts/api-server** — Express API server; in dev it also spawns the Vite dev server on :5174 and proxies through to :8080
+- **artifacts/api-server/src/lib/audioMastering.py** — Python worker (pyloudnorm, scipy, soundfile) invoked by `masteringProcessor.ts`
+- **lib/db** — Shared Drizzle ORM schema (Postgres). Tables: `users`, `mastering_jobs`, `processedPayments`
+- **lib/api-client-react** — Generated OpenAPI client (orval) + `customFetch` with Clerk bearer-token support
+
+## Pricing model
+
+| Plan | Price | How |
+|---|---|---|
+| Trial | Free | 1 master per account; preview only, download locked |
+| Single | $2 | One-time charge; unlocks 1 specific track + email |
+| 24-hour pass | $10 | Extends `dayPassExpiresAt` by 24h (atomic SQL, stackable) |
+| Lifetime | $200 | Sets `lifetime=true` on the user |
+
+Entitlement priority: `lifetime > day-pass > credit > trial`
 
 ## Auth & Billing
 
-- **Clerk** is the auth provider. Sign-in/up at `/sign-in/*?` and `/sign-up/*?`. The Clerk JWT is sent on every API request via `Authorization: Bearer <token>` (configured in `src/lib/api-client-config.ts`).
-- **Paystack** handles billing. Three plans (USD by default, override with `PAYSTACK_CURRENCY`):
-  - `free` — 3 masters/month
-  - `pro` — $9.99/month, unlimited (Paystack subscription, plan auto-created on first checkout)
-  - `lifetime` — $99 one-time, unlimited
-- The Pro Paystack plan is created lazily on first checkout (`ensurePaystackPlan`) and cached. Override the lookup with `PAYSTACK_PLAN_CODE_PRO`.
+- **Clerk** — authentication. JWT from Clerk is set via `setAuthTokenGetter` in `ApiAuthBridge`. The API reads it from `Authorization: Bearer` header on every request.
+- **Paystack** — one-time charges (no subscriptions). Three plans: `single`, `day`, `lifetime`.
+- Idempotency: `processedPayments` table with `ON CONFLICT DO NOTHING` prevents double-crediting from verify + webhook races.
+- Email: Resend fires after job completion when `downloadUnlocked=true`. Atomic claim-then-send prevents duplicate sends (`emailSentAt` column, claimed with `RETURNING`).
 
-### Endpoints
-- `GET /api/me` — current user, plan, this-month usage
-- `GET /api/billing/plans` — public plan catalogue
-- `POST /api/billing/checkout` `{ plan, returnUrl }` → returns `authorizationUrl`
-- `GET /api/billing/verify?reference=...` — called after the user returns from Paystack
-- `POST /api/billing/cancel` — disables Pro subscription (user keeps Pro until period ends; downgrade happens via webhook)
-- `POST /api/webhooks/paystack` — HMAC-SHA512 verified using `PAYSTACK_SECRET_KEY`
+## Key files
 
-### Required env vars
-- API server (Replit): `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `PAYSTACK_SECRET_KEY`, optional `PAYSTACK_CURRENCY`, `PAYSTACK_PLAN_CODE_PRO`, `FRONTEND_ORIGINS` (comma-separated, required in production)
-- Frontend (Netlify): `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_PAYSTACK_PUBLIC_KEY`, `VITE_API_BASE_URL` (URL of the Replit API server)
+- `artifacts/api-server/src/routes/billing.ts` — checkout, verify, applyPurchase
+- `artifacts/api-server/src/routes/webhook.ts` — Paystack HMAC webhook
+- `artifacts/api-server/src/routes/mastering/index.ts` — upload, download (gated by `?download=1` + `downloadUnlocked`)
+- `artifacts/api-server/src/lib/plans.ts` — `computeEntitlement`
+- `artifacts/api-server/src/lib/postPurchaseEmail.ts` — atomic email claim-then-send
+- `artifacts/api-server/src/lib/email.ts` — Resend wrapper
+- `artifacts/music-mastering/src/pages/landing.tsx` — hero, testimonials, pricing teaser, CTA
+- `artifacts/music-mastering/src/components/SupportChat.tsx` — floating FAQ chatbot
+- `artifacts/music-mastering/src/pages/job.tsx` — A/B waveform, paywall card, download button
 
-## Database
+## Environment variables
 
-`users` (id = Clerk userId, email, plan, lifetime, paystackCustomerCode, paystackSubscriptionCode, paystackEmailToken, proRenewsAt, createdAt, updatedAt)
+See `ENV.md` for full details.
 
-`mastering_jobs` (… + nullable `user_id`, nullable `session_id` for legacy rows). All mastering routes filter by `req.userId` from `requireAuth`, which auto-upserts the user row on first call.
+**API server:** `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `PAYSTACK_SECRET_KEY`, `RESEND_API_KEY`, optional: `RESEND_FROM_EMAIL`, `PUBLIC_APP_URL`, `PORT`, `NODE_ENV`
 
-To sync schema: `pnpm --filter @workspace/db run push-force`
+**Frontend build:** `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_PAYSTACK_PUBLIC_KEY`, optional: `VITE_CLERK_PROXY_URL`
+
+## Database schema
+
+`users` — id (Clerk userId), email, plan, lifetime, credits, dayPassExpiresAt, freeTrialUsed, createdAt, updatedAt
+
+`mastering_jobs` — id, userId, filename, originalFilename, preset, status, progress, downloadUnlocked, unlockMode, emailSentAt, targetLufs, measuredInputLufs, measuredOutputLufs, errorMessage, createdAt, completedAt
+
+`processedPayments` — id, paystackReference (unique), userId, plan, createdAt — used for idempotency
+
+To sync schema: `pnpm --filter @workspace/db run push`
 
 ## Deployment
 
-- **Frontend → Netlify**: `artifacts/music-mastering/netlify.toml` is configured. Set the three `VITE_*` env vars in Netlify and connect the repo. Build runs from the monorepo root.
-- **API + worker → Replit**: keep the existing workflow. Set the Paystack webhook URL in the Paystack dashboard to `https://<replit-domain>/api/webhooks/paystack`.
+**Frontend → Netlify:** `netlify.toml` is at repo root. Build command: `pnpm --filter @workspace/music-mastering run build`. Publish: `artifacts/music-mastering/dist/public`. Set `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_PAYSTACK_PUBLIC_KEY` in Netlify env.
 
-## Important wiring details
+**API → Replit (always-on):** Keep existing api-server workflow. Set Paystack webhook to `https://<domain>/api/billing/webhook`.
 
-- `app.use("/api/webhooks/paystack", express.raw(...), webhookRouter)` is mounted **before** `express.json()` so HMAC verification sees the raw body. Other `/api` routes get JSON parsing as normal.
-- The api-client-react `setAuthTokenGetter` is wired by `<ApiAuthBridge />` mounted inside `ClerkProvider`. It uses bearer tokens (not cookies) because the frontend and API live on different origins in production.
-- CORS is permissive in dev, but in production (`NODE_ENV=production`) only `FRONTEND_ORIGINS` plus `*.replit.dev` / `localhost` are allowed.
-- Tailwind v4 + Clerk shadcn theme: `@layer theme, base, clerk, components, utilities;` is declared **before** `@import "tailwindcss"`, and `tailwindcss({ optimize: false })` is used in `vite.config.ts` so Clerk's CSS layer ordering survives the build.
+## Known tradeoffs
 
-## Known limitations / future work
+- Free preview streams full-quality audio; a technical user could capture it from DevTools. Accepted as v1 tradeoff.
+- `RESEND_FROM_EMAIL` must be a verified Resend domain. Until configured, emails only deliver to the Resend account owner's address.
+- The `artifacts/music-mastering: web` workflow has `run = "sleep infinity"` because the Vite dev server is spawned by the api-server workflow instead.
 
-- Monthly job-limit enforcement uses a count + insert; under heavy concurrency a user could squeeze in over the cap. Acceptable for the current scale.
-- Webhook handler is idempotent for the events we care about but does not store event IDs, so we have no replay protection beyond Paystack's signature.
+## Scratchpad
+
+- DB schema in `lib/db/src/schema/`. After changes: run `pnpm --filter @workspace/db run push` and rebuild `lib/api-client-react` with `cd lib/api-client-react && pnpm exec tsc -p .` to update dist types.
+- Plan labels in DB: `'trial' | 'payg' | 'day' | 'lifetime'`. Cancel endpoint is a no-op.
+- CORS: in dev allows all origins; in prod requires `FRONTEND_ORIGINS` env var.

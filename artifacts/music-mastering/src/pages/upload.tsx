@@ -110,10 +110,10 @@ export function UploadPage() {
       
       qc.invalidateQueries({ queryKey: meQueryKey });
       setLocation(`/jobs/${result.id}`);
-    } catch (error) {
-      console.error("Upload error:", error);
-      if (error instanceof ApiError && error.status === 402) {
-        const data = error.data as { error?: string } | null;
+    } catch (err: unknown) {
+      console.error("Upload error:", err);
+      if (err instanceof ApiError && err.status === 402) {
+        const data = err.data as { error?: string } | null;
         toast({
           title: "Monthly limit reached",
           description: data?.error ?? "Upgrade your plan to continue mastering.",
@@ -125,7 +125,7 @@ export function UploadPage() {
       }
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "There was an error uploading your file. Please try again.",
+        description: err instanceof Error ? err.message : "There was an error uploading your file. Please try again.",
         variant: "destructive"
       });
     }

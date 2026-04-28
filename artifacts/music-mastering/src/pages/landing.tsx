@@ -19,8 +19,11 @@ import {
   Speaker,
   Piano,
   Guitar,
+  Star,
+  Quote,
 } from "lucide-react";
-import puremixLogo from "@/assets/puremix-logo.jpeg";
+
+const puremixLogo = "/puremix-logo-new.png";
 
 const EQUALIZER_BARS = Array.from({ length: 28 });
 
@@ -53,6 +56,67 @@ function FloatingGear({
       aria-hidden
     >
       <Icon size={size} strokeWidth={1.25} />
+    </div>
+  );
+}
+
+const TESTIMONIALS = [
+  {
+    name: "Tayo Adebayo",
+    role: "Afrobeats producer · Lagos",
+    quote:
+      "I've been using expensive studio plug-ins for years. Puremix.ai gave my track that polished streaming-ready sound in 20 seconds flat. My clients can't believe I didn't bounce to a mastering engineer.",
+    stars: 5,
+    avatar: "TA",
+  },
+  {
+    name: "Amara Diallo",
+    role: "Amapiano artist · Johannesburg",
+    quote:
+      "The 24-hour pass is insane value. I ran eight tracks through it for a $10 — every single one came out sounding massive. The sub bass on amapiano cuts through exactly the way I need.",
+    stars: 5,
+    avatar: "AD",
+  },
+  {
+    name: "Kweku Mensah",
+    role: "Hip-hop mixer · Accra",
+    quote:
+      "Side-by-side A/B comparison on the job page sold me immediately. I can hear the exact difference the AI made. Turned a flat rough mix into a radio-ready track.",
+    stars: 5,
+    avatar: "KM",
+  },
+  {
+    name: "Funmi Okonkwo",
+    role: "Trap/Afro-trap · Abuja",
+    quote:
+      "Puremix.ai genuinely understands African music. Other AI mastering tools make my trap beats sound washed out — this one preserves the punch and adds that professional sheen.",
+    stars: 5,
+    avatar: "FO",
+  },
+  {
+    name: "Siphokazi Dlamini",
+    role: "Afropop vocalist · Cape Town",
+    quote:
+      "The vocals sit perfectly in the mix after mastering. I was worried AI wouldn't handle the bright, forward vocal style I use in afropop, but it actually enhanced it.",
+    stars: 5,
+    avatar: "SD",
+  },
+  {
+    name: "DJ Kolade",
+    role: "Club DJ · Nairobi",
+    quote:
+      "Club preset is exactly what I needed. I master my edits right before a set and they hit the system perfectly. $2 per track is nothing compared to what a human engineer charges.",
+    stars: 5,
+    avatar: "DK",
+  },
+];
+
+function StarRow({ count }: { count: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: count }).map((_, i) => (
+        <Star key={i} size={13} className="fill-amber-400 text-amber-400" />
+      ))}
     </div>
   );
 }
@@ -101,8 +165,8 @@ export function LandingPage() {
                 style={{ animationDelay: "1.2s" }}
               />
               <div className="absolute -inset-3 rounded-full border border-dashed border-primary/20 animate-spin-slower" />
-              <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(195_90%_55%/0.55)]">
-                <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-cover scale-110" />
+              <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(195_90%_55%/0.55)] bg-[hsl(210_50%_8%)]">
+                <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-contain p-1" />
               </div>
             </motion.div>
 
@@ -214,37 +278,110 @@ export function LandingPage() {
 
       {/* Features */}
       <section className="container mx-auto px-4 py-16 max-w-5xl">
+        <motion.div
+          className="text-center mb-10"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={staggerSlow}
+        >
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">Why producers choose Puremix.ai</motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-2">Professional-grade mastering, built around how African music sounds.</motion.p>
+        </motion.div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
             {
               icon: Zap,
               title: "Lightning fast",
-              body: "Most tracks complete in under 30 seconds. Iterate freely instead of waiting hours.",
+              body: "Most tracks complete in under 30 seconds. Iterate freely instead of waiting hours for a mastering engineer to respond.",
             },
             {
               icon: Waves,
               title: "Platform presets",
-              body: "Streaming (-14 LUFS), Club, Warm Vinyl, Broadcast — calibrated for the way listeners actually hear it.",
+              body: "Streaming (-14 LUFS), Club, Warm Vinyl, Broadcast — calibrated for the way listeners actually hear it on Spotify, Apple Music, and club systems.",
             },
             {
               icon: AudioLines,
               title: "A/B side-by-side",
-              body: "Compare original vs. mastered with synced waveforms. Trust your ears, not your hopes.",
+              body: "Compare original vs. mastered with synced waveforms. Trust your ears, not your hopes. Hear every difference the AI made.",
             },
-          ].map((f) => (
-            <Card
+          ].map((f, i) => (
+            <motion.div
               key={f.title}
-              className="bg-card/40 border-border/40 backdrop-blur-sm hover:border-primary/40 hover:shadow-[0_0_24px_hsl(195_90%_55%/0.15)] transition-all"
+              initial={initial}
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
             >
-              <CardContent className="p-6 flex flex-col gap-3">
-                <div className="h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                  <f.icon size={20} />
-                </div>
-                <h3 className="font-bold text-lg">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.body}</p>
-              </CardContent>
-            </Card>
+              <Card className="bg-card/40 border-border/40 backdrop-blur-sm hover:border-primary/40 hover:shadow-[0_0_24px_hsl(195_90%_55%/0.15)] transition-all h-full">
+                <CardContent className="p-6 flex flex-col gap-3">
+                  <div className="h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                    <f.icon size={20} />
+                  </div>
+                  <h3 className="font-bold text-lg">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.body}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+        <div className="container mx-auto px-4 max-w-6xl relative">
+          <motion.div
+            className="text-center mb-12"
+            initial={initial}
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerSlow}
+          >
+            <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono mb-4">
+              <Star size={11} className="fill-amber-400" /> Loved by producers across Africa
+            </motion.span>
+            <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight mt-3">
+              Trusted by 1,000+ artists
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-muted-foreground mt-2 max-w-xl mx-auto">
+              From bedroom producers to touring artists, Puremix.ai delivers professional sound at a fraction of the cost.
+            </motion.p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-5">
+            {TESTIMONIALS.map((t, i) => (
+              <motion.div
+                key={t.name}
+                initial={initial}
+                whileInView="visible"
+                viewport={{ once: true, margin: "-60px" }}
+                variants={{
+                  hidden: { opacity: 0, y: 28 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: (i % 3) * 0.08 } },
+                }}
+              >
+                <Card className="bg-card/50 border-border/40 backdrop-blur-sm hover:border-primary/30 hover:shadow-[0_0_20px_hsl(195_90%_55%/0.1)] transition-all h-full">
+                  <CardContent className="p-6 flex flex-col gap-4">
+                    <Quote size={18} className="text-primary/40" />
+                    <p className="text-sm text-muted-foreground leading-relaxed flex-1">"{t.quote}"</p>
+                    <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                          {t.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold leading-none">{t.name}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{t.role}</p>
+                        </div>
+                      </div>
+                      <StarRow count={t.stars} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -259,29 +396,65 @@ export function LandingPage() {
             { name: "Single Master", price: "$2", desc: "One track, one download", cta: "Buy single", to: "/pricing", featured: false },
             { name: "24-Hour Pass", price: "$10", desc: "Unlimited masters for 24h", cta: "Best value", to: "/pricing", featured: true },
             { name: "Lifetime", price: "$200", desc: "Unlimited forever", cta: "Buy lifetime", to: "/pricing", featured: false },
-          ].map((p) => (
-            <Card
+          ].map((p, i) => (
+            <motion.div
               key={p.name}
-              className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(195_90%_55%/0.15)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
+              initial={initial}
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
             >
-              {p.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
-                  Best value
-                </div>
-              )}
-              <CardContent className="p-6 flex flex-col gap-4 text-center">
-                <h3 className="font-bold text-xl">{p.name}</h3>
-                <div className="text-4xl font-bold font-mono">{p.price}</div>
-                <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                  <CheckCircle2 size={14} className="text-primary" /> {p.desc}
-                </p>
-                <Button asChild className="w-full" variant={p.featured ? "default" : "outline"}>
-                  <Link href={p.to}>{p.cta}</Link>
-                </Button>
-              </CardContent>
-            </Card>
+              <Card
+                className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(195_90%_55%/0.15)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform h-full`}
+              >
+                {p.featured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
+                    Best value
+                  </div>
+                )}
+                <CardContent className="p-6 flex flex-col gap-4 text-center">
+                  <h3 className="font-bold text-xl">{p.name}</h3>
+                  <div className="text-4xl font-bold font-mono">{p.price}</div>
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                    <CheckCircle2 size={14} className="text-primary" /> {p.desc}
+                  </p>
+                  <Button asChild className="w-full mt-auto" variant={p.featured ? "default" : "outline"}>
+                    <Link href={p.to}>{p.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
+      </section>
+
+      {/* CTA Footer Banner */}
+      <section className="container mx-auto px-4 pb-20 max-w-5xl">
+        <motion.div
+          className="relative rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card/60 to-accent/10 backdrop-blur-sm p-10 md:p-14 text-center overflow-hidden"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={staggerSlow}
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(195_90%_55%/0.12),transparent_70%)] pointer-events-none" />
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight relative">
+            Your next release deserves<br className="hidden md:block" /> a professional master.
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-3 max-w-lg mx-auto relative">
+            Join thousands of African producers getting radio-ready sound without the studio bill.
+          </motion.p>
+          <motion.div variants={fadeUp} className="mt-6 flex flex-col sm:flex-row gap-3 justify-center relative">
+            <Button asChild size="lg" className="h-12 px-10 text-base font-bold shadow-[0_0_24px_hsl(195_90%_55%/0.35)]">
+              <Link href="/sign-up">
+                Master your first track free <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </motion.div>
+          <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-4 relative">
+            No credit card required · 1 free trial master included
+          </motion.p>
+        </motion.div>
       </section>
     </div>
   );

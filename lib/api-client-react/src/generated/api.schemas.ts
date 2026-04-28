@@ -49,6 +49,7 @@ export interface MasteringJob {
   createdAt: string;
   /** @nullable */
   completedAt: string | null;
+  downloadUnlocked: boolean;
 }
 
 export interface MasteringStats {

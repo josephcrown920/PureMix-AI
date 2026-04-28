@@ -23,6 +23,7 @@ import { AccountPage } from "@/pages/account";
 import { BillingReturnPage } from "@/pages/billing-return";
 import NotFound from "@/pages/not-found";
 import { ApiAuthBridge } from "@/lib/api-client-config";
+import { SupportChat } from "@/components/SupportChat";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -224,6 +225,7 @@ function ClerkProviderWithRoutes() {
         <TooltipProvider>
           <AnimatedRoutes />
           <Toaster />
+          <SupportChat />
         </TooltipProvider>
       </QueryClientProvider>
     </ClerkProvider>
