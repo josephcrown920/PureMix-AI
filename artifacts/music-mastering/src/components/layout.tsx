@@ -9,7 +9,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
-const puremixLogo = "/puremix-logo-new.png";
+const puremixLogo = "/puremix-logo-new.svg";
 import { Show, useClerk, useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,7 @@ function PlanBadge() {
     lifetime: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   };
   const labels: Record<string, string> = {
-    trial: "trial",
+    trial: "starter",
     payg: "pay-as-you-go",
     day: "24h pass",
     lifetime: "lifetime",
@@ -133,7 +133,7 @@ function AnimatedNavLink({ href, active, icon, label, testId }: NavLinkProps) {
       {active ? (
         <motion.span
           layoutId="nav-underline"
-          className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full bg-primary shadow-[0_0_8px_hsl(195_90%_55%/0.7)]"
+          className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full bg-primary shadow-[0_0_8px_hsl(330_85%_65%/0.7)]"
           transition={
             reduce
               ? { duration: 0 }
@@ -158,7 +158,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-6 md:gap-10">
             <Link href="/" className="flex items-center space-x-2.5 transition-opacity hover:opacity-80 group" data-testid="link-home">
               <motion.div
-                className="relative h-9 w-9 rounded-full overflow-hidden ring-1 ring-primary/40 shadow-[0_0_18px_hsl(195_90%_55%/0.45)] group-hover:shadow-[0_0_24px_hsl(195_90%_55%/0.7)] transition-shadow"
+                className="relative h-9 w-9 rounded-full overflow-hidden ring-1 ring-primary/40 shadow-[0_0_18px_hsl(330_85%_65%/0.45)] group-hover:shadow-[0_0_24px_hsl(330_85%_65%/0.7)] transition-shadow"
                 whileHover={reduce ? undefined : { rotate: -8, scale: 1.05 }}
                 whileTap={reduce ? undefined : { scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 18 }}

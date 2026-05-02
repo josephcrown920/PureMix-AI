@@ -85,7 +85,7 @@ export function PricingPage() {
         </span>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Simple, fair pricing</h1>
         <p className="text-muted-foreground mt-3 text-lg">
-          Try one master free. Pay only when you want to download.
+          Professional AI mastering for Afrobeats, hip-hop &amp; trap.
         </p>
       </div>
 
@@ -110,7 +110,7 @@ export function PricingPage() {
           return (
             <motion.div key={p.id} variants={fadeUp}>
             <Card
-              className={`relative ${featured ? "border-primary/60 shadow-[0_0_36px_hsl(195_90%_55%/0.18)]" : "border-border/50"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
+              className={`relative ${featured ? "border-primary/60 shadow-[0_0_36px_hsl(330_85%_65%/0.18)]" : "border-border/50"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
               data-testid={`pricing-card-${p.id}`}
             >
               <CardCorners color={cornerColor} />

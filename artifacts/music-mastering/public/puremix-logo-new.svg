@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF2D78"/>
+      <stop offset="50%" stop-color="#C026D3"/>
+      <stop offset="100%" stop-color="#FF2D78"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#FF2D78"/>
+      <stop offset="100%" stop-color="#C026D3" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#E879F9"/>
+      <stop offset="100%" stop-color="#FF2D78" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#FF2D78"/>
+      <stop offset="100%" stop-color="#9333EA" stop-opacity="0.5"/>
+    </linearGradient>
+    <clipPath id="circ">
+      <circle cx="60" cy="60" r="48"/>
+    </clipPath>
+  </defs>
+  <!-- Outer ring -->
+  <circle cx="60" cy="60" r="56" stroke="url(#ring)" stroke-width="3" fill="none" opacity="0.9"/>
+  <!-- Inner ring subtle -->
+  <circle cx="60" cy="60" r="51" stroke="#FF2D78" stroke-width="0.75" fill="none" opacity="0.25"/>
+  <!-- Dark background fill -->
+  <circle cx="60" cy="60" r="48" fill="#0A0A0A"/>
+  <!-- Glow behind bars -->
+  <circle cx="60" cy="60" r="48" fill="url(#ring)" opacity="0.07"/>
+
+  <!-- Equalizer bars clipped to circle — 9 bars -->
+  <g clip-path="url(#circ)">
+    <!-- bar 1 -->
+    <rect x="22" y="70" width="6" height="22" rx="2" fill="url(#bar3)" opacity="0.7"/>
+    <!-- bar 2 -->
+    <rect x="31" y="52" width="6" height="40" rx="2" fill="url(#bar1)" opacity="0.85"/>
+    <!-- bar 3 -->
+    <rect x="40" y="38" width="6" height="54" rx="2" fill="url(#bar2)" opacity="0.95"/>
+    <!-- bar 4 (tallest) -->
+    <rect x="49" y="28" width="6" height="64" rx="2" fill="url(#bar1)"/>
+    <!-- bar 5 -->
+    <rect x="58" y="33" width="6" height="59" rx="2" fill="url(#bar2)" opacity="0.9"/>
+    <!-- bar 6 -->
+    <rect x="67" y="44" width="6" height="48" rx="2" fill="url(#bar1)" opacity="0.95"/>
+    <!-- bar 7 -->
+    <rect x="76" y="55" width="6" height="37" rx="2" fill="url(#bar3)" opacity="0.85"/>
+    <!-- bar 8 -->
+    <rect x="85" y="65" width="6" height="27" rx="2" fill="url(#bar2)" opacity="0.7"/>
+    <!-- bar 9 -->
+    <rect x="94" y="74" width="6" height="18" rx="2" fill="url(#bar3)" opacity="0.55"/>
+  </g>
+</svg>

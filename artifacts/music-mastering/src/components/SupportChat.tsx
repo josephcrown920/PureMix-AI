@@ -12,9 +12,9 @@ interface Message {
 
 const FAQS: { triggers: string[]; answer: string }[] = [
   {
-    triggers: ["free", "trial", "free trial", "try"],
+    triggers: ["trial", "starter", "try", "how start"],
     answer:
-      "Every new account gets 1 free trial master. You can preview the full mastered track at no cost — the download is gated behind a payment. No card is needed to preview.",
+      "Every new account includes 1 starter master. You can preview the full mastered result — the WAV download is unlocked after payment. Pick the plan that suits you on the Pricing page.",
   },
   {
     triggers: ["format", "file type", "wav", "mp3", "flac", "upload"],
@@ -229,7 +229,7 @@ export function SupportChat() {
 
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        className="relative h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_hsl(195_90%_55%/0.5)] hover:shadow-[0_0_32px_hsl(195_90%_55%/0.7)] flex items-center justify-center transition-shadow"
+        className="relative h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_hsl(330_85%_65%/0.5)] hover:shadow-[0_0_32px_hsl(330_85%_65%/0.7)] flex items-center justify-center transition-shadow"
         whileHover={reduce ? undefined : { scale: 1.06 }}
         whileTap={reduce ? undefined : { scale: 0.94 }}
         transition={{ type: "spring", stiffness: 400, damping: 18 }}

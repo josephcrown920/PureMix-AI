@@ -10,7 +10,7 @@ import { stagger, fadeUp } from "@/lib/motion";
 import { CardCorners } from "@/components/Frame";
 
 const LABEL_NAMES = {
-  trial: "Free Trial",
+  trial: "Starter",
   payg: "Pay as you go",
   day: "24-Hour Pass",
   lifetime: "Lifetime",
@@ -80,8 +80,8 @@ export function AccountPage() {
           <CardDescription>
             {planLabel === "trial" && (
               ent.trialAvailable
-                ? "You have 1 free trial master available (preview only — pay to download)."
-                : "Your free trial is used. Buy a master to download a finished track."
+                ? "1 starter master included — pay to unlock your download."
+                : "Your starter master has been used. Buy a plan to keep mastering."
             )}
             {planLabel === "payg" && (
               <>You have <strong>{ent.credits}</strong> master credit{ent.credits === 1 ? "" : "s"} ready to use.</>

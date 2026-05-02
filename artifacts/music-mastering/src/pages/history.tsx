@@ -107,7 +107,7 @@ export function HistoryPage() {
             return (
               <motion.div key={job.id} variants={fadeUp}>
               <Link href={`/jobs/${job.id}`}>
-                <Card className="relative bg-card/40 hover:bg-card hover:border-primary/40 hover:shadow-[0_0_28px_-12px_hsl(195_90%_55%/0.5)] transition-all cursor-pointer group overflow-hidden border-border/60">
+                <Card className="relative bg-card/40 hover:bg-card hover:border-primary/40 hover:shadow-[0_0_28px_-12px_hsl(330_85%_65%/0.5)] transition-all cursor-pointer group overflow-hidden border-border/60">
                   <CardCorners />
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row md:items-center">

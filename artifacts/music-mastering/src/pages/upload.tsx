@@ -191,10 +191,10 @@ export function UploadPage() {
                 {ent.consumeMode === "day" && "24-hour pass active — unlimited masters & downloads."}
                 {ent.consumeMode === "credit" && `${ent.credits} master credit${ent.credits === 1 ? "" : "s"} available.`}
                 {ent.consumeMode === "trial" && (
-                  <>Free trial — preview only. <Link href="/pricing" className="text-primary hover:underline">Buy to download.</Link></>
+                  <>Starter master — preview only. <Link href="/pricing" className="text-primary hover:underline">Buy to download.</Link></>
                 )}
                 {!ent.allowed && (
-                  <>Trial used. <Link href="/pricing" className="text-primary hover:underline">Buy to keep mastering.</Link></>
+                  <>Starter used. <Link href="/pricing" className="text-primary hover:underline">Buy to keep mastering.</Link></>
                 )}
               </p>
             )}
@@ -204,7 +204,7 @@ export function UploadPage() {
               <CardContent className="p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">You've used your free trial master.</p>
+                  <p className="font-semibold text-sm">Your starter master has been used.</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Pay $2 per master, $10 for 24-hour unlimited, or $200 lifetime.
                   </p>
@@ -258,14 +258,14 @@ export function UploadPage() {
                         contentClassName="p-6 flex flex-col items-center gap-4"
                       >
                         <motion.div
-                          className="p-4 rounded-full bg-primary/20 text-primary ring-2 ring-primary/30 shadow-[0_0_30px_hsl(195_90%_55%/0.4)]"
+                          className="p-4 rounded-full bg-primary/20 text-primary ring-2 ring-primary/30 shadow-[0_0_30px_hsl(330_85%_65%/0.4)]"
                           animate={
                             reduce
                               ? undefined
                               : { boxShadow: [
-                                  "0 0 20px hsl(195 90% 55% / 0.3)",
-                                  "0 0 40px hsl(195 90% 55% / 0.5)",
-                                  "0 0 20px hsl(195 90% 55% / 0.3)",
+                                  "0 0 20px hsl(330 85% 65% / 0.3)",
+                                  "0 0 40px hsl(330 85% 65% / 0.5)",
+                                  "0 0 20px hsl(330 85% 65% / 0.3)",
                                 ] }
                           }
                           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}

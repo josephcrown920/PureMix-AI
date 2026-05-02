@@ -58,7 +58,7 @@ export function ProcessingWaveform({
       {/* Scanner sweep */}
       {!reduce && (
         <div
-          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-[hsl(195_90%_70%)]/25 to-transparent animate-scanner mix-blend-screen"
+          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-[hsl(330_85%_75%)]/25 to-transparent animate-scanner mix-blend-screen"
           aria-hidden
         />
       )}

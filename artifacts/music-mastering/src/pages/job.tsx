@@ -254,7 +254,7 @@ export function JobPage() {
                   data-testid="btn-download"
                   whileHover={reduce ? undefined : { ...buttonHover, scale: 1.02 }}
                   whileTap={reduce ? undefined : buttonTap}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm bg-primary text-primary-foreground shadow-[0_0_15px_hsl(195_90%_55%/0.3)] hover:shadow-[0_0_28px_hsl(195_90%_55%/0.55)] transition-shadow"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm bg-primary text-primary-foreground shadow-[0_0_15px_hsl(330_85%_65%/0.3)] hover:shadow-[0_0_28px_hsl(330_85%_65%/0.55)] transition-shadow"
                 >
                   <Download className="h-5 w-5" /> Download WAV
                 </motion.a>
@@ -424,7 +424,7 @@ export function JobPage() {
                   whileTap={reduce ? undefined : buttonTap}
                 >
                   <Button
-                    className="w-full h-auto flex flex-col items-start gap-1 p-4 text-left shadow-[0_0_18px_hsl(195_90%_55%/0.25)]"
+                    className="w-full h-auto flex flex-col items-start gap-1 p-4 text-left shadow-[0_0_18px_hsl(330_85%_65%/0.25)]"
                     onClick={() => startUnlock("day")}
                     disabled={unlocking !== null}
                     data-testid="btn-unlock-day"
