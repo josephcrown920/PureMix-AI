@@ -213,7 +213,7 @@ function ClerkProviderWithRoutes() {
           start: { title: "Welcome back", subtitle: "Sign in to continue mastering" },
         },
         signUp: {
-          start: { title: "Create your account", subtitle: "Start mastering tracks for free" },
+          start: { title: "Create your account", subtitle: "Master your first track today" },
         },
       }}
       routerPush={(to) => setLocation(stripBase(to))}

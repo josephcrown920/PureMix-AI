@@ -169,6 +169,30 @@ router.post(
     }
     const effectiveLufs = targetLufs ?? PRESET_LUFS[preset] ?? -14;
 
+    // Parse optional advanced controls
+    const customParams: Record<string, unknown> = {};
+    if (req.body.stereoWidth != null && req.body.stereoWidth !== "") {
+      const v = parseFloat(req.body.stereoWidth);
+      if (!isNaN(v)) customParams.stereo_width = Math.min(200, Math.max(50, v));
+    }
+    if (req.body.bassDb != null && req.body.bassDb !== "") {
+      const v = parseFloat(req.body.bassDb);
+      if (!isNaN(v)) customParams.bass_db = Math.min(6, Math.max(-6, v));
+    }
+    if (req.body.brightnessDb != null && req.body.brightnessDb !== "") {
+      const v = parseFloat(req.body.brightnessDb);
+      if (!isNaN(v)) customParams.brightness_db = Math.min(6, Math.max(-6, v));
+    }
+    if (req.body.compression != null && ["light","medium","heavy"].includes(req.body.compression)) {
+      customParams.compression = req.body.compression;
+    }
+    if (req.body.warmth === "true" || req.body.warmth === true) {
+      customParams.warmth = true;
+    }
+    if (req.body.punch === "true" || req.body.punch === true) {
+      customParams.punch = true;
+    }
+
     const [job] = await db
       .insert(masteringJobsTable)
       .values({
@@ -180,6 +204,7 @@ router.post(
         status: "pending",
         progress: 0,
         targetLufs: effectiveLufs,
+        customParams: JSON.stringify(customParams),
         downloadUnlocked,
         unlockMode,
       })

@@ -51,6 +51,7 @@ export async function processMasteringJob(jobId: number): Promise<void> {
       outputPath,
       job.preset,
       String(targetLufs),
+      job.customParams ?? "{}",
     ], jobId);
 
     await db
