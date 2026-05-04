@@ -81,9 +81,9 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(clerkMiddleware());
-
-app.use("/api", router);
+// Only apply Clerk middleware to /api routes so the Vite dev-server proxy
+// still works even when CLERK_SECRET_KEY isn't configured yet.
+app.use("/api", clerkMiddleware(), router);
 
 if (process.env["NODE_ENV"] === "production") {
   const distPath = path.resolve(

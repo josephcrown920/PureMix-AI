@@ -178,7 +178,7 @@ export function LandingPage() {
               <span className="text-primary"> tuned for African music.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Drop your Afrobeats, amapiano, hip-hop or trap mix and get a release-ready master in seconds. Preview free. Pay only when you want to download.
+              Drop your Afrobeats, amapiano, hip-hop or trap mix and get a release-ready master in seconds. $2 per track. Professional results, instantly.
             </motion.p>
 
             {/* Live equalizer */}
@@ -204,7 +204,7 @@ export function LandingPage() {
               >
                 <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)] hover:shadow-[0_0_36px_hsl(270_85%_68%/0.65)] transition-shadow">
                   <Link href="/sign-up" data-testid="btn-cta-signup">
-                    Start mastering free <ArrowRight className="ml-2 h-4 w-4" />
+                    Start mastering <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </motion.div>
@@ -219,7 +219,7 @@ export function LandingPage() {
               </motion.div>
             </motion.div>
             <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-2">
-              1 free trial master. No card required to preview.
+              $2 per master · $10 for 24-hour unlimited · $200 lifetime
             </motion.p>
           </motion.div>
         </div>
@@ -345,7 +345,7 @@ export function LandingPage() {
               Trusted by 1,000+ artists
             </motion.h2>
             <motion.p variants={fadeUp} className="text-muted-foreground mt-2 max-w-xl mx-auto">
-              From bedroom producers to touring artists, Puremix.ai delivers professional sound at a fraction of the cost.
+              From bedroom producers to touring artists — professional sound, instant delivery, one low price.
             </motion.p>
           </motion.div>
 
@@ -389,13 +389,13 @@ export function LandingPage() {
       <section className="container mx-auto px-4 py-16 max-w-5xl">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Simple, fair pricing</h2>
-          <p className="text-muted-foreground mt-2">Start free. Upgrade when you ship.</p>
+          <p className="text-muted-foreground mt-2">Transparent pricing. No subscriptions. No surprises.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { name: "Single Master", price: "$2", desc: "One track, one download", cta: "Buy single", to: "/pricing", featured: false },
+            { name: "Single Master", price: "$2", desc: "One track, full WAV download", cta: "Buy now", to: "/pricing", featured: false },
             { name: "24-Hour Pass", price: "$10", desc: "Unlimited masters for 24h", cta: "Best value", to: "/pricing", featured: true },
-            { name: "Lifetime", price: "$200", desc: "Unlimited forever", cta: "Buy lifetime", to: "/pricing", featured: false },
+            { name: "Lifetime", price: "$200", desc: "Unlimited forever, one payment", cta: "Buy lifetime", to: "/pricing", featured: false },
           ].map((p, i) => (
             <motion.div
               key={p.name}
@@ -447,12 +447,12 @@ export function LandingPage() {
           <motion.div variants={fadeUp} className="mt-6 flex flex-col sm:flex-row gap-3 justify-center relative">
             <Button asChild size="lg" className="h-12 px-10 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)]">
               <Link href="/sign-up">
-                Master your first track free <ArrowRight className="ml-2 h-4 w-4" />
+                Master your first track <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </motion.div>
           <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-4 relative">
-            No credit card required · 1 free trial master included
+            $2 per master · Instant results · WAV download included
           </motion.p>
         </motion.div>
       </section>

@@ -12,9 +12,9 @@ interface Message {
 
 const FAQS: { triggers: string[]; answer: string }[] = [
   {
-    triggers: ["free", "trial", "free trial", "try"],
+    triggers: ["price", "cost", "how much", "try"],
     answer:
-      "Every new account gets 1 free trial master. You can preview the full mastered track at no cost — the download is gated behind a payment. No card is needed to preview.",
+      "Mastering starts at $2 per track. You can also get a 24-hour unlimited pass for $10, or go lifetime for $200 — one payment, unlimited masters forever.",
   },
   {
     triggers: ["format", "file type", "wav", "mp3", "flac", "upload"],

@@ -85,7 +85,7 @@ export function PricingPage() {
         </span>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Simple, fair pricing</h1>
         <p className="text-muted-foreground mt-3 text-lg">
-          Try one master free. Pay only when you want to download.
+          $2 per master. No subscription. Pay once, download instantly.
         </p>
       </div>
 
@@ -163,8 +163,7 @@ export function PricingPage() {
       </motion.div>
 
       <p className="text-center text-xs text-muted-foreground mt-10">
-        Payments processed securely by Paystack. All purchases are one-time —
-        nothing auto-renews.
+        Payments processed securely. All purchases are one-time — nothing auto-renews. WAV download delivered immediately.
       </p>
     </div>
   );

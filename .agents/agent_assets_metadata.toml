@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "xBUpYhPwjq637HjJKAeOr"
+uri = "file://artifacts/api-server/uploads/output/Two_Days_mastered.wav"
+type = "audio"
+title = "Two Days — Mastered (Streaming -14 LUFS)"

@@ -63,13 +63,12 @@ export function computeEntitlement(user: User): Entitlement {
   const dayPassExpiresAt = dayActive
     ? new Date(user.dayPassExpiresAt!).toISOString()
     : null;
-  const trialAvailable = !user.freeTrialUsed;
 
   let consumeMode: Entitlement["consumeMode"] = null;
   if (user.lifetime) consumeMode = "lifetime";
   else if (dayActive) consumeMode = "day";
   else if ((user.credits ?? 0) > 0) consumeMode = "credit";
-  else if (trialAvailable) consumeMode = "trial";
+  // No free trial — every master requires payment
 
   let label: PlanLabel = "trial";
   if (user.lifetime) label = "lifetime";
@@ -82,6 +81,6 @@ export function computeEntitlement(user: User): Entitlement {
     label,
     credits: user.credits ?? 0,
     dayPassExpiresAt,
-    trialAvailable,
+    trialAvailable: false,
   };
 }

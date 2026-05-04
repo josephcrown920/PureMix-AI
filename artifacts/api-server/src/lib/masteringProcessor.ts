@@ -29,7 +29,12 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
   const targetLufs = job.targetLufs ?? PRESET_LUFS[job.preset] ?? -14;
 
+  // Enforce a minimum processing time so the progress animation feels real
+  const MIN_PROCESSING_MS = 30_000;
+
   try {
+    const processingStart = Date.now();
+
     await db
       .update(masteringJobsTable)
       .set({ status: "processing", progress: 5, processingStartedAt: new Date() })
@@ -46,12 +51,22 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
     const scriptPath = path.join(__dirname, "audioMastering.py");
 
-    const result = await runPythonScript(scriptPath, [
-      job.inputPath,
-      outputPath,
-      job.preset,
-      String(targetLufs),
-    ], jobId);
+    const minWait = new Promise<void>((resolve) =>
+      setTimeout(resolve, MIN_PROCESSING_MS)
+    );
+
+    const [result] = await Promise.all([
+      runPythonScript(scriptPath, [
+        job.inputPath,
+        outputPath,
+        job.preset,
+        String(targetLufs),
+      ], jobId),
+      minWait,
+    ]);
+
+    const elapsed = Date.now() - processingStart;
+    logger.info({ jobId, elapsedMs: elapsed }, "Mastering completed");
 
     await db
       .update(masteringJobsTable)

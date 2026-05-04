@@ -108,7 +108,7 @@ router.post(
     if (!ent.allowed) {
       try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
       res.status(402).json({
-        error: "You've used your free trial master. Pay $2 for one master, $10 for a 24-hour pass, or $200 lifetime.",
+        error: "No credits. $2 for one master, $10 for a 24-hour pass, or $200 lifetime.",
         code: "PLAN_LIMIT",
       });
       return;
@@ -138,19 +138,6 @@ router.post(
       }
       downloadUnlocked = true;
       unlockMode = "credit";
-    } else if (ent.consumeMode === "trial") {
-      const result = await db
-        .update(usersTable)
-        .set({ freeTrialUsed: true, updatedAt: new Date() })
-        .where(and(eq(usersTable.id, userId), eq(usersTable.freeTrialUsed, false)))
-        .returning({ id: usersTable.id });
-      if (result.length === 0) {
-        try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
-        res.status(402).json({ error: "Free trial already used.", code: "PLAN_LIMIT" });
-        return;
-      }
-      downloadUnlocked = false; // preview only
-      unlockMode = null;
     }
 
     const preset = req.body.preset as string;

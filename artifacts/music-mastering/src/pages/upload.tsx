@@ -189,12 +189,9 @@ export function UploadPage() {
               <p className="text-xs text-muted-foreground mt-2 font-mono" data-testid="text-usage">
                 {ent.consumeMode === "lifetime" && "Lifetime plan — unlimited masters & downloads."}
                 {ent.consumeMode === "day" && "24-hour pass active — unlimited masters & downloads."}
-                {ent.consumeMode === "credit" && `${ent.credits} master credit${ent.credits === 1 ? "" : "s"} available.`}
-                {ent.consumeMode === "trial" && (
-                  <>Free trial — preview only. <Link href="/pricing" className="text-primary hover:underline">Buy to download.</Link></>
-                )}
+                {ent.consumeMode === "credit" && `${ent.credits} master credit${ent.credits === 1 ? "" : "s"} remaining.`}
                 {!ent.allowed && (
-                  <>Trial used. <Link href="/pricing" className="text-primary hover:underline">Buy to keep mastering.</Link></>
+                  <>No credits. <Link href="/pricing" className="text-primary hover:underline">Buy a plan to start mastering.</Link></>
                 )}
               </p>
             )}
@@ -204,13 +201,13 @@ export function UploadPage() {
               <CardContent className="p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">You've used your free trial master.</p>
+                  <p className="font-semibold text-sm">No credits remaining.</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Pay $2 per master, $10 for 24-hour unlimited, or $200 lifetime.
+                    $2 per master · $10 for 24-hour unlimited · $200 lifetime.
                   </p>
                 </div>
                 <Button asChild size="sm" data-testid="btn-upgrade-from-limit">
-                  <Link href="/pricing">See plans</Link>
+                  <Link href="/pricing">Buy now</Link>
                 </Button>
               </CardContent>
             </Card>
