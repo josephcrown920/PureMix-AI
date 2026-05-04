@@ -165,7 +165,7 @@ export function LandingPage() {
                 style={{ animationDelay: "1.2s" }}
               />
               <div className="absolute -inset-3 rounded-full border border-dashed border-primary/20 animate-spin-slower" />
-              <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(195_90%_55%/0.55)] bg-[hsl(210_50%_8%)]">
+              <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(270_85%_68%/0.60)] bg-[hsl(265_40%_7%)]">
                 <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-contain p-1" />
               </div>
             </motion.div>
@@ -202,7 +202,7 @@ export function LandingPage() {
                 whileTap={reduce ? undefined : { scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 18 }}
               >
-                <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(195_90%_55%/0.35)] hover:shadow-[0_0_32px_hsl(195_90%_55%/0.55)] transition-shadow">
+                <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)] hover:shadow-[0_0_36px_hsl(270_85%_68%/0.65)] transition-shadow">
                   <Link href="/sign-up" data-testid="btn-cta-signup">
                     Start mastering free <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -313,7 +313,7 @@ export function LandingPage() {
               viewport={{ once: true, margin: "-60px" }}
               variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
             >
-              <Card className="bg-card/40 border-border/40 backdrop-blur-sm hover:border-primary/40 hover:shadow-[0_0_24px_hsl(195_90%_55%/0.15)] transition-all h-full">
+              <Card className="bg-card/40 border-border/40 backdrop-blur-sm hover:border-primary/40 hover:shadow-[0_0_24px_hsl(270_85%_68%/0.18)] transition-all h-full">
                 <CardContent className="p-6 flex flex-col gap-3">
                   <div className="h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
                     <f.icon size={20} />
@@ -361,7 +361,7 @@ export function LandingPage() {
                   visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: (i % 3) * 0.08 } },
                 }}
               >
-                <Card className="bg-card/50 border-border/40 backdrop-blur-sm hover:border-primary/30 hover:shadow-[0_0_20px_hsl(195_90%_55%/0.1)] transition-all h-full">
+                <Card className="bg-card/50 border-border/40 backdrop-blur-sm hover:border-primary/30 hover:shadow-[0_0_20px_hsl(270_85%_68%/0.12)] transition-all h-full">
                   <CardContent className="p-6 flex flex-col gap-4">
                     <Quote size={18} className="text-primary/40" />
                     <p className="text-sm text-muted-foreground leading-relaxed flex-1">"{t.quote}"</p>
@@ -405,7 +405,7 @@ export function LandingPage() {
               variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
             >
               <Card
-                className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(195_90%_55%/0.15)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform h-full`}
+                className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(270_85%_68%/0.20)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform h-full`}
               >
                 {p.featured && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
@@ -437,7 +437,7 @@ export function LandingPage() {
           viewport={{ once: true, margin: "-60px" }}
           variants={staggerSlow}
         >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(195_90%_55%/0.12),transparent_70%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(270_85%_68%/0.14),transparent_70%)] pointer-events-none" />
           <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight relative">
             Your next release deserves<br className="hidden md:block" /> a professional master.
           </motion.h2>
@@ -445,7 +445,7 @@ export function LandingPage() {
             Join thousands of African producers getting radio-ready sound without the studio bill.
           </motion.p>
           <motion.div variants={fadeUp} className="mt-6 flex flex-col sm:flex-row gap-3 justify-center relative">
-            <Button asChild size="lg" className="h-12 px-10 text-base font-bold shadow-[0_0_24px_hsl(195_90%_55%/0.35)]">
+            <Button asChild size="lg" className="h-12 px-10 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)]">
               <Link href="/sign-up">
                 Master your first track free <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

@@ -1,5 +1,9 @@
 # Puremix.ai — AI Music Mastering SaaS
 
+## UI Theme
+
+**Purple Dusk** — deep dark purple (`hsl(265 40% 7%)`) background with violet primary (`hsl(270 85% 68%)`) and pink/magenta accent (`hsl(300 70% 65%)`). All hardcoded shadow colors, glow effects, and Clerk auth UI use the same purple palette.
+
 Afrobeats-focused AI mastering SaaS. Upload an audio track, get a release-ready master in seconds. Preview free; pay to download.
 
 ## Architecture

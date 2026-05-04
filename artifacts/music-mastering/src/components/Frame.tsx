@@ -17,9 +17,9 @@ interface FrameProps extends Omit<HTMLMotionProps<"div">, "ref"> {
 
 const variantStyles: Record<FrameVariant, string> = {
   default:
-    "border border-border/60 bg-card/40 backdrop-blur-sm shadow-[0_0_24px_-12px_hsl(195_90%_55%/0.35)]",
+    "border border-border/60 bg-card/40 backdrop-blur-sm shadow-[0_0_24px_-12px_hsl(270_85%_68%/0.35)]",
   showcase:
-    "border border-primary/30 bg-gradient-to-br from-card/70 via-card/40 to-card/70 backdrop-blur-md shadow-[0_0_60px_-20px_hsl(195_90%_55%/0.45),inset_0_1px_0_0_hsl(195_90%_70%/0.15)]",
+    "border border-primary/30 bg-gradient-to-br from-card/70 via-card/40 to-card/70 backdrop-blur-md shadow-[0_0_60px_-20px_hsl(270_85%_68%/0.45),inset_0_1px_0_0_hsl(270_85%_80%/0.15)]",
   console:
     "border border-[hsl(35_25%_18%)] bg-gradient-to-b from-[hsl(28_30%_14%)] via-[hsl(25_25%_10%)] to-[hsl(22_22%_8%)] shadow-[0_8px_32px_-8px_rgba(0,0,0,0.7),inset_0_1px_0_0_hsl(35_30%_30%/0.4),inset_0_-2px_4px_-2px_rgba(0,0,0,0.6)]",
   subtle:

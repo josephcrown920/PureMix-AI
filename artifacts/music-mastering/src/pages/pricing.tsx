@@ -110,7 +110,7 @@ export function PricingPage() {
           return (
             <motion.div key={p.id} variants={fadeUp}>
             <Card
-              className={`relative ${featured ? "border-primary/60 shadow-[0_0_36px_hsl(195_90%_55%/0.18)]" : "border-border/50"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
+              className={`relative ${featured ? "border-primary/60 shadow-[0_0_36px_hsl(270_85%_68%/0.22)]" : "border-border/50"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform`}
               data-testid={`pricing-card-${p.id}`}
             >
               <CardCorners color={cornerColor} />

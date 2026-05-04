@@ -229,7 +229,7 @@ export function SupportChat() {
 
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        className="relative h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_hsl(195_90%_55%/0.5)] hover:shadow-[0_0_32px_hsl(195_90%_55%/0.7)] flex items-center justify-center transition-shadow"
+        className="relative h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_hsl(270_85%_68%/0.55)] hover:shadow-[0_0_36px_hsl(270_85%_68%/0.75)] flex items-center justify-center transition-shadow"
         whileHover={reduce ? undefined : { scale: 1.06 }}
         whileTap={reduce ? undefined : { scale: 0.94 }}
         transition={{ type: "spring", stiffness: 400, damping: 18 }}

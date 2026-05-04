@@ -7,9 +7,9 @@
 @import "@clerk/themes/shadcn.css";
 @plugin "@tailwindcss/typography";
 
-/* Clerk dark surface tweaks for the Ocean theme */
-.cl-formFieldInput::placeholder { color: hsl(200 15% 55%); opacity: 1; }
-.cl-formFieldInput:focus { border-color: hsl(195 90% 55%); }
+/* Clerk dark surface tweaks for the Purple theme */
+.cl-formFieldInput::placeholder { color: hsl(270 10% 55%); opacity: 1; }
+.cl-formFieldInput:focus { border-color: hsl(270 85% 68%); }
 
 @custom-variant dark (&:is(.dark *));
 
@@ -83,42 +83,42 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 200 40% 98%;
-  --foreground: 210 50% 12%;
+  --background: 265 30% 97%;
+  --foreground: 265 50% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 210 50% 12%;
-  --card-border: 200 30% 88%;
+  --card-foreground: 265 50% 12%;
+  --card-border: 265 25% 88%;
   --popover: 0 0% 100%;
-  --popover-foreground: 210 50% 12%;
-  --popover-border: 200 30% 88%;
-  --primary: 195 85% 40%;
-  --primary-foreground: 200 40% 98%;
-  --secondary: 200 40% 93%;
-  --secondary-foreground: 210 50% 15%;
-  --muted: 200 30% 94%;
-  --muted-foreground: 210 20% 42%;
-  --accent: 175 70% 40%;
-  --accent-foreground: 200 40% 98%;
+  --popover-foreground: 265 50% 12%;
+  --popover-border: 265 25% 88%;
+  --primary: 270 85% 55%;
+  --primary-foreground: 265 30% 97%;
+  --secondary: 265 30% 93%;
+  --secondary-foreground: 265 50% 15%;
+  --muted: 265 20% 94%;
+  --muted-foreground: 265 15% 42%;
+  --accent: 300 70% 50%;
+  --accent-foreground: 265 30% 97%;
   --destructive: 0 75% 55%;
   --destructive-foreground: 0 0% 100%;
-  --border: 200 30% 88%;
-  --input: 200 30% 88%;
-  --ring: 195 85% 40%;
+  --border: 265 25% 88%;
+  --input: 265 25% 88%;
+  --ring: 270 85% 55%;
   
-  --chart-1: 195 85% 40%;
-  --chart-2: 175 70% 40%;
-  --chart-3: 210 50% 12%;
-  --chart-4: 200 40% 93%;
-  --chart-5: 210 20% 42%;
+  --chart-1: 270 85% 55%;
+  --chart-2: 300 70% 50%;
+  --chart-3: 265 50% 12%;
+  --chart-4: 265 30% 93%;
+  --chart-5: 265 15% 42%;
 
-  --sidebar: 200 40% 98%;
-  --sidebar-foreground: 210 50% 15%;
-  --sidebar-border: 200 30% 88%;
-  --sidebar-primary: 195 85% 40%;
-  --sidebar-primary-foreground: 200 40% 98%;
-  --sidebar-accent: 175 70% 40%;
-  --sidebar-accent-foreground: 200 40% 98%;
-  --sidebar-ring: 195 85% 40%;
+  --sidebar: 265 30% 97%;
+  --sidebar-foreground: 265 50% 15%;
+  --sidebar-border: 265 25% 88%;
+  --sidebar-primary: 270 85% 55%;
+  --sidebar-primary-foreground: 265 30% 97%;
+  --sidebar-accent: 300 70% 50%;
+  --sidebar-accent-foreground: 265 30% 97%;
+  --sidebar-ring: 270 85% 55%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -152,51 +152,51 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Ocean theme - deep blues with cyan/teal highlights */
-  --background: 210 50% 8%;
-  --foreground: 200 30% 95%;
+  /* Purple Dusk theme - deep purple with violet/magenta highlights */
+  --background: 265 40% 7%;
+  --foreground: 270 15% 95%;
   
-  --card: 210 50% 11%;
-  --card-foreground: 200 30% 95%;
-  --card-border: 210 35% 19%;
+  --card: 265 38% 10%;
+  --card-foreground: 270 15% 95%;
+  --card-border: 265 30% 18%;
   
-  --popover: 210 50% 11%;
-  --popover-foreground: 200 30% 95%;
-  --popover-border: 210 35% 19%;
+  --popover: 265 38% 10%;
+  --popover-foreground: 270 15% 95%;
+  --popover-border: 265 30% 18%;
   
-  --primary: 195 90% 55%;
-  --primary-foreground: 210 50% 8%;
+  --primary: 270 85% 68%;
+  --primary-foreground: 265 40% 7%;
   
-  --secondary: 210 35% 17%;
-  --secondary-foreground: 200 30% 95%;
+  --secondary: 265 30% 15%;
+  --secondary-foreground: 270 15% 95%;
   
-  --muted: 210 35% 17%;
-  --muted-foreground: 200 15% 65%;
+  --muted: 265 30% 15%;
+  --muted-foreground: 270 10% 60%;
   
-  --accent: 175 75% 50%;
-  --accent-foreground: 210 50% 8%;
+  --accent: 300 70% 65%;
+  --accent-foreground: 265 40% 7%;
   
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 210 35% 19%;
-  --input: 210 35% 19%;
-  --ring: 195 90% 55%;
+  --border: 265 30% 18%;
+  --input: 265 30% 18%;
+  --ring: 270 85% 68%;
   
-  --chart-1: 195 90% 55%;
-  --chart-2: 175 75% 50%;
-  --chart-3: 200 30% 95%;
-  --chart-4: 210 35% 17%;
-  --chart-5: 200 15% 65%;
+  --chart-1: 270 85% 68%;
+  --chart-2: 300 70% 65%;
+  --chart-3: 270 15% 95%;
+  --chart-4: 265 30% 15%;
+  --chart-5: 270 10% 60%;
 
-  --sidebar: 210 50% 11%;
-  --sidebar-foreground: 200 30% 95%;
-  --sidebar-border: 210 35% 19%;
-  --sidebar-primary: 195 90% 55%;
-  --sidebar-primary-foreground: 210 50% 8%;
-  --sidebar-accent: 175 75% 50%;
-  --sidebar-accent-foreground: 210 50% 8%;
-  --sidebar-ring: 195 90% 55%;
+  --sidebar: 265 38% 10%;
+  --sidebar-foreground: 270 15% 95%;
+  --sidebar-border: 265 30% 18%;
+  --sidebar-primary: 270 85% 68%;
+  --sidebar-primary-foreground: 265 40% 7%;
+  --sidebar-accent: 300 70% 65%;
+  --sidebar-accent-foreground: 265 40% 7%;
+  --sidebar-ring: 270 85% 68%;
 }
 
 @layer base {

@@ -258,14 +258,14 @@ export function UploadPage() {
                         contentClassName="p-6 flex flex-col items-center gap-4"
                       >
                         <motion.div
-                          className="p-4 rounded-full bg-primary/20 text-primary ring-2 ring-primary/30 shadow-[0_0_30px_hsl(195_90%_55%/0.4)]"
+                          className="p-4 rounded-full bg-primary/20 text-primary ring-2 ring-primary/30 shadow-[0_0_30px_hsl(270_85%_68%/0.45)]"
                           animate={
                             reduce
                               ? undefined
                               : { boxShadow: [
-                                  "0 0 20px hsl(195 90% 55% / 0.3)",
-                                  "0 0 40px hsl(195 90% 55% / 0.5)",
-                                  "0 0 20px hsl(195 90% 55% / 0.3)",
+                                  "0 0 20px hsl(270 85% 68% / 0.3)",
+                                  "0 0 40px hsl(270 85% 68% / 0.55)",
+                                  "0 0 20px hsl(270 85% 68% / 0.3)",
                                 ] }
                           }
                           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
@@ -413,7 +413,7 @@ export function UploadPage() {
               <Button 
                 onClick={handleSubmit} 
                 disabled={!file || createJob.isPending || limitReached} 
-                className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-shadow"
+                className="w-full h-12 text-base font-bold shadow-[0_0_20px_hsl(270_85%_68%/0.25)] hover:shadow-[0_0_28px_hsl(270_85%_68%/0.50)] transition-shadow"
                 data-testid="btn-submit-mastering"
               >
                 {createJob.isPending ? (
