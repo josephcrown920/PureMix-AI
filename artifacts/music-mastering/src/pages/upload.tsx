@@ -6,14 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useCreateMasteringJob, useGetMasteringStats, ApiError } from "@workspace/api-client-react";
+import { useGetMasteringStats, ApiError } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatTime, PRESET_LABELS } from "@/lib/format";
-import { useMe, meQueryKey } from "@/lib/api";
+import { useMe, meQueryKey, createMasteringJob } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Frame } from "@/components/Frame";
 import { fadeUp } from "@/lib/motion";
+import { Switch } from "@/components/ui/switch";
+import {
+  TotalControlPanel,
+  buildCustomParamsPayload,
+  type TotalControlValue,
+} from "@/components/TotalControlPanel";
 type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
 
 export function UploadPage() {
@@ -23,9 +29,15 @@ export function UploadPage() {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preset, setPreset] = useState<CreateMasteringJobBodyPreset>("streaming");
+  const [generateVariations, setGenerateVariations] = useState(false);
+  const [totalControl, setTotalControl] = useState<TotalControlValue>({
+    enabled: false,
+    voice_cleanup: true,
+    params: {},
+  });
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const createJob = useCreateMasteringJob();
+
   const { data: stats } = useGetMasteringStats();
   const { data: me } = useMe();
   const qc = useQueryClient();
@@ -94,20 +106,22 @@ export function UploadPage() {
 
   const handleSubmit = async () => {
     if (!file) return;
+    setSubmitting(true);
 
     try {
-      const result = await createJob.mutateAsync({
-        data: {
-          audio: file,
-          preset: preset
-        }
+      const result = await createMasteringJob(file, {
+        preset,
+        customParams: buildCustomParamsPayload(totalControl),
+        generateVariations,
       });
-      
+
       toast({
         title: "Upload complete",
-        description: "Your track is now being processed.",
+        description: generateVariations
+          ? "We're rendering 3 AI variations — pick your favorite when it's ready."
+          : "Your track is now being processed.",
       });
-      
+
       qc.invalidateQueries({ queryKey: meQueryKey });
       setLocation(`/jobs/${result.id}`);
     } catch (err: unknown) {
@@ -123,11 +137,21 @@ export function UploadPage() {
         setLocation("/pricing");
         return;
       }
+      if (err instanceof ApiError && err.status === 429) {
+        toast({
+          title: "Slow down",
+          description: "Too many uploads in a short window. Wait a minute and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Upload failed",
         description: err instanceof Error ? err.message : "There was an error uploading your file. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -405,15 +429,35 @@ export function UploadPage() {
                   </Label>
                 </div>
               </RadioGroup>
+
+              <div className="mt-5 flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-4 py-3">
+                <div className="flex-1 pr-3">
+                  <div className="text-sm font-semibold flex items-center gap-2">
+                    <Sparkles size={14} className="text-primary" /> AI Variations
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Generate 3 master versions (clean, punchy, open) so you can A/B and pick.
+                  </div>
+                </div>
+                <Switch
+                  checked={generateVariations}
+                  onCheckedChange={setGenerateVariations}
+                  data-testid="switch-generate-variations"
+                />
+              </div>
+
+              <div className="mt-3">
+                <TotalControlPanel value={totalControl} onChange={setTotalControl} />
+              </div>
             </CardContent>
             <CardFooter className="pt-2 pb-6 px-6">
-              <Button 
-                onClick={handleSubmit} 
-                disabled={!file || createJob.isPending || limitReached} 
+              <Button
+                onClick={handleSubmit}
+                disabled={!file || submitting || limitReached}
                 className="w-full h-12 text-base font-bold shadow-[0_0_20px_hsl(270_85%_68%/0.25)] hover:shadow-[0_0_28px_hsl(270_85%_68%/0.50)] transition-shadow"
                 data-testid="btn-submit-mastering"
               >
-                {createJob.isPending ? (
+                {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Initializing Studio...

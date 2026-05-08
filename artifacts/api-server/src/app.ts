@@ -7,6 +7,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
 import webhookRouter from "./routes/webhook";
+import { generalLimiter, publicLimiter } from "./middlewares/rateLimit";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -68,11 +69,16 @@ app.use(
   }),
 );
 
+// Trust the Replit / Netlify reverse proxy so express-rate-limit and Clerk
+// see the real client IP from X-Forwarded-For instead of the proxy's IP.
+app.set("trust proxy", 1);
+
 // Paystack webhook MUST be mounted before express.json so we can verify the
 // HMAC signature against the raw request body. Scope the raw parser strictly
 // to the webhook path so all other /api routes still get JSON parsing.
 app.use(
   "/api/webhooks/paystack",
+  publicLimiter,
   express.raw({ type: "*/*" }),
   webhookRouter,
 );
@@ -83,7 +89,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Only apply Clerk middleware to /api routes so the Vite dev-server proxy
 // still works even when CLERK_SECRET_KEY isn't configured yet.
-app.use("/api", clerkMiddleware(), router);
+// Rate limit runs after Clerk so we can key by user ID when authenticated.
+app.use("/api", clerkMiddleware(), generalLimiter, router);
 
 if (process.env["NODE_ENV"] === "production") {
   const distPath = path.resolve(

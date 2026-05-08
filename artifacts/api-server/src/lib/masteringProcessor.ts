@@ -16,6 +16,14 @@ const PRESET_LUFS: Record<string, number> = {
   custom: -14,
 };
 
+interface VariantMeta {
+  id: string;
+  label: string;
+  description: string;
+  outputPath: string;
+  outputLufs: number;
+}
+
 export async function processMasteringJob(jobId: number): Promise<void> {
   const [job] = await db
     .select()
@@ -51,21 +59,62 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
     const scriptPath = path.join(__dirname, "audioMastering.py");
 
+    // Variations are triggered by the presence of any variants array (the
+    // upload route inserts an empty array as a flag). We render into a
+    // dedicated per-job folder so multiple jobs never collide.
+    const wantsVariations = Array.isArray(job.variants);
+    const variantsDir = wantsVariations
+      ? path.join(outputDir, "variants", `job_${job.id}`)
+      : null;
+    if (variantsDir && !fs.existsSync(variantsDir)) {
+      fs.mkdirSync(variantsDir, { recursive: true });
+    }
+
+    const args = [
+      job.inputPath,
+      outputPath,
+      job.preset,
+      String(targetLufs),
+    ];
+    if (job.customParams && Object.keys(job.customParams).length > 0) {
+      args.push("--params", JSON.stringify(job.customParams));
+    }
+    if (variantsDir) {
+      args.push("--variations", variantsDir);
+    }
+
     const minWait = new Promise<void>((resolve) =>
       setTimeout(resolve, MIN_PROCESSING_MS)
     );
 
     const [result] = await Promise.all([
-      runPythonScript(scriptPath, [
-        job.inputPath,
-        outputPath,
-        job.preset,
-        String(targetLufs),
-      ], jobId),
+      runPythonScript(scriptPath, args, jobId),
       minWait,
     ]);
 
     const elapsed = Date.now() - processingStart;
+
+    // Crash-safety guard: if the user requested variations but the Python
+    // process didn't return a non-empty `variants` array, treat the job as
+    // failed rather than silently writing an inconsistent "completed" row.
+    // This catches the case where the process exits cleanly mid-render or
+    // the result payload was lost.
+    if (wantsVariations && (!result.variants || result.variants.length === 0)) {
+      throw new Error(
+        "AI variations were requested but the engine did not return a complete variants manifest. The job has been marked failed; please retry.",
+      );
+    }
+    // Sanity-check that all variant files exist on disk before committing.
+    if (result.variants) {
+      for (const v of result.variants) {
+        if (!v.outputPath || !fs.existsSync(v.outputPath)) {
+          throw new Error(
+            `Variant '${v.id}' missing output file on disk; refusing to commit job as completed.`,
+          );
+        }
+      }
+    }
+
     logger.info({ jobId, elapsedMs: elapsed }, "Mastering completed");
 
     await db
@@ -76,6 +125,12 @@ export async function processMasteringJob(jobId: number): Promise<void> {
         outputPath,
         measuredInputLufs: result.input_lufs ?? null,
         measuredOutputLufs: result.output_lufs ?? null,
+        variants: result.variants ?? job.variants ?? null,
+        // Default selected variant to ai_pick when variations were generated
+        // and the user hasn't picked one yet.
+        selectedVariantId: result.variants && !job.selectedVariantId
+          ? "ai_pick"
+          : job.selectedVariantId,
         completedAt: new Date(),
       })
       .where(eq(masteringJobsTable.id, jobId));
@@ -111,6 +166,7 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 interface PythonResult {
   input_lufs?: number;
   output_lufs?: number;
+  variants?: VariantMeta[];
 }
 
 function runPythonScript(
@@ -122,26 +178,44 @@ function runPythonScript(
     const proc = spawn("python3", [scriptPath, ...args]);
     let result: PythonResult = {};
     let errorOutput = "";
+    // Buffer incomplete lines across chunks — without this, a JSON message
+    // split across two stdout writes (likely with the larger result payload
+    // containing variant metadata) would be silently dropped.
+    let stdoutBuf = "";
+
+    const handleLine = (line: string): void => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      try {
+        const msg = JSON.parse(trimmed);
+        if (msg.type === "progress") {
+          const progress = Math.min(95, msg.progress as number);
+          db.update(masteringJobsTable)
+            .set({ progress })
+            .where(eq(masteringJobsTable.id, jobId))
+            .catch((e: unknown) => logger.warn({ e }, "Failed to update progress"));
+        } else if (msg.type === "result") {
+          result = {
+            input_lufs: msg.input_lufs,
+            output_lufs: msg.output_lufs,
+            variants: msg.variants,
+          };
+        } else if (msg.type === "error") {
+          errorOutput = msg.error as string;
+        }
+      } catch {
+        // Non-JSON line, ignore
+      }
+    };
 
     proc.stdout.on("data", (chunk: Buffer) => {
-      const lines = chunk.toString().split("\n").filter((l) => l.trim());
-      for (const line of lines) {
-        try {
-          const msg = JSON.parse(line);
-          if (msg.type === "progress") {
-            const progress = Math.min(95, msg.progress as number);
-            db.update(masteringJobsTable)
-              .set({ progress })
-              .where(eq(masteringJobsTable.id, jobId))
-              .catch((e: unknown) => logger.warn({ e }, "Failed to update progress"));
-          } else if (msg.type === "result") {
-            result = { input_lufs: msg.input_lufs, output_lufs: msg.output_lufs };
-          } else if (msg.type === "error") {
-            errorOutput = msg.error as string;
-          }
-        } catch {
-          // Non-JSON line, ignore
-        }
+      stdoutBuf += chunk.toString();
+      let newlineIdx = stdoutBuf.indexOf("\n");
+      while (newlineIdx !== -1) {
+        const line = stdoutBuf.slice(0, newlineIdx);
+        stdoutBuf = stdoutBuf.slice(newlineIdx + 1);
+        handleLine(line);
+        newlineIdx = stdoutBuf.indexOf("\n");
       }
     });
 
@@ -150,6 +224,8 @@ function runPythonScript(
     });
 
     proc.on("close", (code) => {
+      // Flush any trailing line that didn't end in \n.
+      if (stdoutBuf.length > 0) handleLine(stdoutBuf);
       if (code === 0) {
         resolve(result);
       } else {

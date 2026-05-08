@@ -15,6 +15,8 @@ import {
 import fs from "fs";
 import { requireAuth } from "../../middlewares/requireAuth";
 import { computeEntitlement } from "../../lib/plans";
+import { uploadLimiter } from "../../middlewares/rateLimit";
+import { validateCustomParams } from "../../lib/masteringParams";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router: IRouter = Router();
@@ -67,6 +69,18 @@ function jobToJson(j: typeof masteringJobsTable.$inferSelect) {
     errorMessage: j.errorMessage,
     downloadUnlocked: j.downloadUnlocked,
     unlockMode: j.unlockMode,
+    customParams: j.customParams ?? null,
+    // Strip server-side outputPath from variant payload — clients address
+    // variants by id via /mastering/jobs/:id/files/output?variant=<id>.
+    variants: j.variants
+      ? j.variants.map((v: { id: string; label: string; description: string; outputLufs: number }) => ({
+          id: v.id,
+          label: v.label,
+          description: v.description,
+          outputLufs: v.outputLufs,
+        }))
+      : null,
+    selectedVariantId: j.selectedVariantId,
     createdAt: j.createdAt.toISOString(),
     completedAt: j.completedAt?.toISOString() ?? null,
   };
@@ -87,6 +101,7 @@ router.get("/mastering/jobs", async (req, res): Promise<void> => {
 
 router.post(
   "/mastering/jobs",
+  uploadLimiter,
   upload.single("audio"),
   async (req, res): Promise<void> => {
     if (!req.file) {
@@ -156,6 +171,22 @@ router.post(
     }
     const effectiveLufs = targetLufs ?? PRESET_LUFS[preset] ?? -14;
 
+    // Optional Total Control overrides — JSON string in form body.
+    let customParams: Record<string, number | boolean> | null = null;
+    if (typeof req.body.customParams === "string" && req.body.customParams.trim()) {
+      try {
+        customParams = validateCustomParams(JSON.parse(req.body.customParams));
+      } catch {
+        res.status(400).json({ error: "Invalid customParams JSON" });
+        return;
+      }
+    }
+
+    // Empty array used as a "please render variations" flag for the worker.
+    const generateVariations =
+      req.body.generateVariations === "true" ||
+      req.body.generateVariations === "1";
+
     const [job] = await db
       .insert(masteringJobsTable)
       .values({
@@ -169,6 +200,8 @@ router.post(
         targetLufs: effectiveLufs,
         downloadUnlocked,
         unlockMode,
+        customParams,
+        variants: generateVariations ? [] : null,
       })
       .returning();
 
@@ -282,14 +315,34 @@ router.get("/mastering/files/:id/output", async (req, res): Promise<void> => {
     .select()
     .from(masteringJobsTable)
     .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
-  if (!job || !job.outputPath || !fs.existsSync(job.outputPath)) {
+  if (!job) {
     res.status(404).json({ error: "Mastered file not ready" });
     return;
   }
+
+  // If a variant is requested, serve that file instead of the primary output.
+  // Variants live in their own folder under uploads/output/variants/job_<id>/.
+  let filePath: string | null = job.outputPath;
+  const variantId = typeof req.query.variant === "string" ? req.query.variant : null;
+  if (variantId && job.variants) {
+    const variant = job.variants.find((v: { id: string }) => v.id === variantId);
+    if (!variant) {
+      res.status(404).json({ error: `Unknown variant: ${variantId}` });
+      return;
+    }
+    filePath = variant.outputPath;
+  }
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    res.status(404).json({ error: "Mastered file not ready" });
+    return;
+  }
+
   // Streaming for in-app preview is allowed for everyone (status 200, inline).
   // Downloads (Content-Disposition: attachment) require an unlocked job.
   const wantsDownload = req.query.download === "1";
-  const masteredFilename = `mastered_${job.originalFilename.replace(/\.[^.]+$/, "")}.wav`;
+  const variantSuffix = variantId ? `_${variantId}` : "";
+  const masteredFilename = `mastered${variantSuffix}_${job.originalFilename.replace(/\.[^.]+$/, "")}.wav`;
   res.setHeader("Content-Type", "audio/wav");
   if (wantsDownload) {
     if (!job.downloadUnlocked) {
@@ -310,7 +363,63 @@ router.get("/mastering/files/:id/output", async (req, res): Promise<void> => {
       `inline; filename="${encodeURIComponent(masteredFilename)}"`,
     );
   }
-  fs.createReadStream(job.outputPath).pipe(res);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+/**
+ * PUT /mastering/jobs/:id/variant — choose which AI variant becomes the
+ * "primary" master (also drives downloads + email). Body: { variantId }
+ */
+router.put("/mastering/jobs/:id/variant", async (req, res): Promise<void> => {
+  const params = GetMasteringJobParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const variantId = (req.body?.variantId ?? "").toString();
+  if (!variantId) {
+    res.status(400).json({ error: "variantId is required" });
+    return;
+  }
+
+  const userId = req.userId!;
+  const [job] = await db
+    .select()
+    .from(masteringJobsTable)
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)));
+  if (!job) {
+    res.status(404).json({ error: "Mastering job not found" });
+    return;
+  }
+  if (!job.variants || job.variants.length === 0) {
+    res.status(400).json({ error: "This job has no variants to choose from" });
+    return;
+  }
+  const variant = job.variants.find((v: { id: string }) => v.id === variantId);
+  if (!variant) {
+    res.status(400).json({ error: `Unknown variant: ${variantId}` });
+    return;
+  }
+
+  // Mirror the chosen variant into the canonical outputPath so downloads &
+  // email link continue to point at the same URL the rest of the app uses.
+  try {
+    if (variant.outputPath && fs.existsSync(variant.outputPath) && job.outputPath) {
+      fs.copyFileSync(variant.outputPath, job.outputPath);
+    }
+  } catch (err) {
+    logger.warn({ err, jobId: job.id, variantId }, "Failed to mirror variant to primary output");
+  }
+
+  const [updated] = await db
+    .update(masteringJobsTable)
+    .set({
+      selectedVariantId: variantId,
+      measuredOutputLufs: variant.outputLufs ?? job.measuredOutputLufs,
+    })
+    .where(and(eq(masteringJobsTable.id, params.data.id), eq(masteringJobsTable.userId, userId)))
+    .returning();
+  res.json(jobToJson(updated));
 });
 
 export default router;

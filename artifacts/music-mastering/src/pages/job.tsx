@@ -4,9 +4,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useGetMasteringJob, getGetMasteringJobQueryKey, getGetInputFileUrl, getGetOutputFileUrl } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles, Lock, Mail, Loader2, Music2, Zap, Crown } from "lucide-react";
+import { Download, ArrowLeft, Disc, AudioLines, BarChart3, FastForward, CheckCircle2, AlertTriangle, Sparkles, Lock, Mail, Loader2, Music2, Zap, Crown, Layers, Mic2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { postCheckout, type PlanId } from "@/lib/api";
+import { postCheckout, type PlanId, selectMasteringVariant, type MasteringJobExtra } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { PRESET_LABELS } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WaveformPlayer } from "@/components/WaveformPlayer";
@@ -43,8 +44,13 @@ export function JobPage() {
 
   const [activeTab, setActiveTab] = useState<"sidebyside" | "original" | "mastered">("sidebyside");
   const [unlocking, setUnlocking] = useState<PlanId | null>(null);
+  const [switchingVariant, setSwitchingVariant] = useState<string | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const qc = useQueryClient();
+  // Cast to extended type — variants/customParams/selectedVariantId are
+  // server fields that aren't in the auto-generated OpenAPI spec yet.
+  const jobExt = job as (typeof job & Partial<MasteringJobExtra>) | undefined;
 
   const startUnlock = async (plan: PlanId) => {
     if (!job) return;
@@ -97,7 +103,31 @@ export function JobPage() {
   const StageIcon = currentStage.icon;
 
   const originalUrl = getGetInputFileUrl(job.id);
-  const masteredUrl = getGetOutputFileUrl(job.id);
+  const baseMasteredUrl = getGetOutputFileUrl(job.id);
+  const variants = jobExt?.variants ?? null;
+  const selectedVariantId = jobExt?.selectedVariantId ?? null;
+  // When variants exist, append ?variant=<id> so playback streams the
+  // variant file (not the canonical output, which we keep in sync server-side).
+  const masteredUrl = selectedVariantId
+    ? `${baseMasteredUrl}${baseMasteredUrl.includes("?") ? "&" : "?"}variant=${encodeURIComponent(selectedVariantId)}`
+    : baseMasteredUrl;
+
+  const handleSelectVariant = async (variantId: string) => {
+    if (!jobExt || variantId === selectedVariantId) return;
+    setSwitchingVariant(variantId);
+    try {
+      await selectMasteringVariant(jobExt.id, variantId);
+      qc.invalidateQueries({ queryKey: getGetMasteringJobQueryKey(jobExt.id) });
+    } catch (err) {
+      toast({
+        title: "Couldn't switch variant",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSwitchingVariant(null);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 py-8 max-w-4xl animate-in fade-in duration-500">
@@ -284,6 +314,62 @@ export function JobPage() {
               </Frame>
             </div>
           </Frame>
+
+          {/* AI Variations selector — only when variants exist */}
+          {variants && variants.length > 0 && (
+            <Frame
+              variant="showcase"
+              label="AI Variations"
+              badge={
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-primary/10 border border-primary/30 text-[10px] font-mono uppercase tracking-[0.2em] text-primary">
+                  <Layers size={8} /> {variants.length} versions
+                </span>
+              }
+              contentClassName="p-6"
+              data-testid="variants-selector"
+            >
+              <p className="text-sm text-muted-foreground mb-4">
+                We rendered three takes of your master. Switch between them — the player
+                below updates instantly. The selected one is what gets downloaded.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {variants.map((v) => {
+                  const isActive = v.id === selectedVariantId;
+                  const isLoading = switchingVariant === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleSelectVariant(v.id)}
+                      disabled={isLoading || switchingVariant !== null}
+                      className={`text-left rounded-md border p-4 transition-all ${
+                        isActive
+                          ? "border-primary bg-primary/10 shadow-[0_0_18px_hsl(270_85%_68%/0.25)]"
+                          : "border-border/60 bg-background/40 hover:border-primary/50 hover:bg-accent/40"
+                      } ${isLoading ? "opacity-60" : ""}`}
+                      data-testid={`variant-${v.id}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold">{v.label}</span>
+                        {isActive && (
+                          <CheckCircle2 size={14} className="text-primary" />
+                        )}
+                        {isLoading && (
+                          <Loader2 size={14} className="animate-spin text-primary" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        {v.description}
+                      </p>
+                      <div className="mt-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                        {v.outputLufs?.toFixed(1) ?? "--"} LUFS
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Frame>
+          )}
 
           {/* A/B Waveform Comparison */}
           <Frame variant="subtle" label="A/B Comparison" contentClassName="p-6">
@@ -475,6 +561,49 @@ export function JobPage() {
               <span>We've also emailed a download link to your account email.</span>
             </Frame>
           )}
+
+          {/* Coming Soon: heavy ML features deferred to a separate session */}
+          <Frame
+            variant="subtle"
+            label="Coming soon"
+            contentClassName="p-5"
+            data-testid="coming-soon-card"
+          >
+            <p className="text-xs text-muted-foreground mb-4">
+              We're training the heavier models that power these features.
+              Mastering will keep working without them.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-md border border-border/40 bg-background/40 p-4 flex items-start gap-3">
+                <Layers size={18} className="text-primary/70 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    Stem Separation
+                    <span className="text-[9px] font-mono uppercase tracking-[0.2em] px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1">
+                      <Clock size={8} /> Soon
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                    Split your track into vocals, drums, bass, and instruments.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-md border border-border/40 bg-background/40 p-4 flex items-start gap-3">
+                <Mic2 size={18} className="text-primary/70 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    Auto-Tune
+                    <span className="text-[9px] font-mono uppercase tracking-[0.2em] px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1">
+                      <Clock size={8} /> Soon
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                    Snap vocals to key with hard or natural pitch correction.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Frame>
         </div>
       )}
     </div>
