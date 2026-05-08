@@ -121,9 +121,10 @@ function AnimatedNavLink({ href, active, icon, label, testId }: NavLinkProps) {
   return (
     <Link
       href={href}
-      className={`relative text-sm font-medium transition-colors hover:text-primary group ${
+      className={`relative text-sm font-semibold tracking-tight transition-colors hover:text-primary group ${
         active ? "text-foreground" : "text-muted-foreground"
       }`}
+      style={{ fontFamily: "var(--app-font-display)" }}
       data-testid={testId}
     >
       <span className="flex items-center gap-2 py-1">
@@ -166,7 +167,10 @@ export function Layout({ children }: LayoutProps) {
                 <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-cover scale-110" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-full" />
               </motion.div>
-              <span className="hidden font-bold sm:inline-block font-mono tracking-tight text-xl">
+              <span
+                className="hidden font-bold sm:inline-block text-xl tracking-tight"
+                style={{ fontFamily: "var(--app-font-display)" }}
+              >
                 Puremix<span className="text-primary">.ai</span>
               </span>
             </Link>

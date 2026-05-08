@@ -1,4 +1,5 @@
-import { useEffect, useState, lazy, Suspense, useId } from "react";
+import { useEffect, useState, useId } from "react";
+import { SimulatedDemo } from "@/components/SimulatedDemo";
 import { Link } from "wouter";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,47 @@ const FAQS = [
   { q: "Do you offer refunds?", a: "Failed masters are auto-refunded. The Lifetime plan can be refunded within 14 days if you've processed fewer than 10 masters. Successful single masters are non-refundable since you preview before download." },
   { q: "Do I need to be a sound engineer?", a: "Not at all. Pick a preset (or chat with the AI engineer) and hit Master. Power users can fine-tune every DSP parameter via the Total Control panel." },
 ];
+
+const LYRICS_LINES = [
+  "Lights low, sky higher than the airwaves,",
+  "808s knockin' through the night, no remake,",
+  "Lagos to Joburg, every city know my name,",
+  "Mastered by Puremix, can you hear the same?",
+  "",
+  "[Hook]",
+  "We bring the heat — wave after wave,",
+  "Pure mix, pure sound, every line we save…",
+];
+
+function TypewriterLyrics() {
+  const reduce = useReducedMotion();
+  const fullText = LYRICS_LINES.join("\n");
+  const [count, setCount] = useState(reduce ? fullText.length : 0);
+
+  useEffect(() => {
+    if (reduce) return;
+    let i = 0;
+    const total = fullText.length;
+    const id = window.setInterval(() => {
+      i = (i + 2) % (total + 60);
+      setCount(Math.min(i, total));
+      if (i >= total + 50) i = 0;
+    }, 60);
+    return () => window.clearInterval(id);
+  }, [fullText, reduce]);
+
+  return (
+    <pre
+      className="text-xs leading-relaxed font-mono text-foreground whitespace-pre-wrap min-h-[180px]"
+      aria-live="polite"
+    >
+      {fullText.slice(0, count)}
+      {!reduce && count < fullText.length && (
+        <span className="inline-block w-1.5 h-3 bg-primary align-middle animate-pulse ml-0.5" />
+      )}
+    </pre>
+  );
+}
 
 function StarRow({ count, size = 13 }: { count: number; size?: number }) {
   return (
@@ -604,7 +646,22 @@ export function LandingPage() {
           <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">
             Three steps. Thirty seconds.
           </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-2">
+            Watch the full flow — upload, chat, master, download — in one loop.
+          </motion.p>
         </motion.div>
+
+        {/* Simulated AI demo (no media file, animates the flow live) */}
+        <motion.div
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={fadeUp}
+          className="mb-10 max-w-3xl mx-auto"
+        >
+          <SimulatedDemo />
+        </motion.div>
+
         <div className="grid md:grid-cols-3 gap-6 relative">
           <div className="hidden md:block absolute top-12 left-[16%] right-[16%] border-t-2 border-dashed border-primary/20" aria-hidden />
           {[
@@ -644,6 +701,78 @@ export function LandingPage() {
             </Link>
           </Button>
         </div>
+      </section>
+
+      {/* LYRICS SHOWCASE — dedicated visual for the new transcriber */}
+      <section className="container mx-auto px-4 py-12 max-w-5xl">
+        <motion.div
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={staggerSlow}
+          className="rounded-2xl border border-primary/30 bg-gradient-to-br from-card/60 via-card/40 to-primary/5 backdrop-blur-sm p-6 md:p-10 grid md:grid-cols-2 gap-8 items-center overflow-hidden"
+          data-testid="lyrics-showcase"
+        >
+          <motion.div variants={fadeUp} className="space-y-4">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono">
+              <FileText size={11} /> Included free
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Pull the lyrics, instantly.
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Every paid master comes with a one-click lyrics transcribe. Hit "Transcribe" on the
+              job page and Whisper-class speech-to-text returns a clean text sheet in seconds.
+              Perfect for DSP submissions, sync briefs, and lyric videos.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2"><CheckCircle2 size={14} className="text-emerald-400 mt-0.5 shrink-0" /> Copy to clipboard or download as <code className="px-1 rounded bg-card/60 font-mono text-[11px]">.txt</code></li>
+              <li className="flex items-start gap-2"><CheckCircle2 size={14} className="text-emerald-400 mt-0.5 shrink-0" /> Handles English, Pidgin, Yoruba, isiZulu, and more</li>
+              <li className="flex items-start gap-2"><CheckCircle2 size={14} className="text-emerald-400 mt-0.5 shrink-0" /> Free with any paid master — no add-on fee</li>
+            </ul>
+            <div className="pt-2">
+              <Button asChild size="sm" className="font-semibold">
+                <Link href="/sign-up" data-testid="btn-lyrics-cta">
+                  Try the transcriber <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Animated lyrics mockup */}
+          <motion.div variants={fadeUp} className="relative">
+            <div
+              className="rounded-xl border border-primary/30 bg-[hsl(265_38%_8%)] p-5 shadow-[0_0_40px_-10px_hsl(270_85%_68%/0.5)]"
+              data-testid="lyrics-mockup"
+            >
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-primary/15">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-md bg-primary/15 text-primary flex items-center justify-center">
+                    <FileText size={13} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold leading-none" style={{ fontFamily: "var(--app-font-display)" }}>
+                      track.wav
+                    </div>
+                    <div className="text-[10px] font-mono text-muted-foreground mt-1">2:48 · transcribing…</div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> WHISPER
+                </span>
+              </div>
+              <TypewriterLyrics />
+              <div className="mt-3 pt-3 border-t border-primary/15 flex items-center gap-2">
+                <button className="text-[10px] font-mono px-2 py-1 rounded border border-border/50 bg-card/40 text-muted-foreground hover:text-foreground transition-colors">
+                  Copy
+                </button>
+                <button className="text-[10px] font-mono px-2 py-1 rounded border border-border/50 bg-card/40 text-muted-foreground hover:text-foreground transition-colors">
+                  Download .txt
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Comparison table */}
