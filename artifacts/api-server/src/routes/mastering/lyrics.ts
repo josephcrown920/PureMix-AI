@@ -35,7 +35,7 @@ router.post(
   lyricsLimiter,
   async (req, res): Promise<void> => {
     const userId = req.userId!;
-    const jobId = parseInt(req.params.id, 10);
+    const jobId = parseInt(String(req.params.id ?? ""), 10);
     if (!Number.isFinite(jobId) || jobId <= 0) {
       res.status(400).json({ error: "Invalid job id." });
       return;
@@ -99,8 +99,9 @@ router.post(
       return;
     }
 
+    let stream: fs.ReadStream | null = null;
     try {
-      const stream = fs.createReadStream(job.inputPath);
+      stream = fs.createReadStream(job.inputPath);
       // OpenAI SDK reads filename hints from the stream's `path` for content
       // sniffing. Pass the original path so the API gets the correct ext.
       Object.defineProperty(stream, "path", {
@@ -126,6 +127,12 @@ router.post(
       res.status(502).json({
         error: "Transcription service is unreachable. Try again in a moment.",
       });
+    } finally {
+      // Defensive: if OpenAI threw before fully draining the stream, close the
+      // file descriptor explicitly to avoid EMFILE under load.
+      if (stream && !stream.destroyed) {
+        stream.destroy();
+      }
     }
   },
 );
