@@ -1,8 +1,8 @@
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
-import { db, masteringJobsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, masteringJobsTable, usersTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from "fs";
 
@@ -152,14 +152,32 @@ export async function processMasteringJob(jobId: number): Promise<void> {
     const errorMessage = err instanceof Error ? err.message : String(err);
     logger.error({ jobId, err }, "Mastering job failed");
 
-    await db
-      .update(masteringJobsTable)
-      .set({
-        status: "failed",
-        errorMessage,
-        completedAt: new Date(),
-      })
-      .where(eq(masteringJobsTable.id, jobId));
+    // Mark failed AND, if the failure is on our side, refund the credit that
+    // was reserved when the job was submitted. Day-pass / lifetime users have
+    // nothing to refund; only "credit" consumers do.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(masteringJobsTable)
+        .set({
+          status: "failed",
+          errorMessage,
+          completedAt: new Date(),
+          // Revoke download entitlement so the failed row can't be downloaded.
+          downloadUnlocked: false,
+        })
+        .where(eq(masteringJobsTable.id, jobId));
+
+      if (job.unlockMode === "credit" && job.userId) {
+        await tx
+          .update(usersTable)
+          .set({
+            credits: sql`${usersTable.credits} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(usersTable.id, job.userId));
+        logger.info({ jobId, userId: job.userId }, "Refunded 1 credit due to failed job");
+      }
+    });
   }
 }
 

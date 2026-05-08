@@ -223,6 +223,36 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
       <main className="flex-1 flex flex-col">{children}</main>
+      <footer className="border-t border-border/40 bg-background/60 mt-auto">
+        <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 font-mono">
+            <span>© {new Date().getFullYear()} Puremix.ai</span>
+            <span className="opacity-50">·</span>
+            <span>AI mastering for African music</span>
+          </div>
+          <nav className="flex items-center gap-5" data-testid="footer-legal-nav">
+            <Link href="/pricing" className="hover:text-primary transition-colors" data-testid="link-footer-pricing">
+              Pricing
+            </Link>
+            <Link href="/terms" className="hover:text-primary transition-colors" data-testid="link-footer-terms">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-primary transition-colors" data-testid="link-footer-privacy">
+              Privacy
+            </Link>
+            <Link href="/refunds" className="hover:text-primary transition-colors" data-testid="link-footer-refunds">
+              Refunds
+            </Link>
+            <a
+              href="mailto:support@puremix.ai"
+              className="hover:text-primary transition-colors"
+              data-testid="link-footer-support"
+            >
+              Support
+            </a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -133,6 +133,32 @@ export async function createMasteringJob(
   );
 }
 
+// ---------------------------------------------------------------------------
+// AI Suggestion
+// ---------------------------------------------------------------------------
+
+export type SuggestPreset =
+  | "streaming"
+  | "club"
+  | "warm_vinyl"
+  | "broadcast"
+  | "custom";
+
+export interface SuggestResponse {
+  preset: SuggestPreset;
+  customParams: Record<string, number | boolean>;
+  rationale: string;
+  generateVariations: boolean;
+}
+
+export function fetchSuggestion(description: string): Promise<SuggestResponse> {
+  return customFetch<SuggestResponse>("/api/mastering/suggest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
+}
+
 /** Pick which AI variation becomes the canonical master. */
 export function selectMasteringVariant(
   jobId: number,

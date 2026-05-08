@@ -21,6 +21,9 @@ import { LandingPage } from "@/pages/landing";
 import { PricingPage } from "@/pages/pricing";
 import { AccountPage } from "@/pages/account";
 import { BillingReturnPage } from "@/pages/billing-return";
+import { TermsPage } from "@/pages/terms";
+import { PrivacyPage } from "@/pages/privacy";
+import { RefundsPage } from "@/pages/refunds";
 import NotFound from "@/pages/not-found";
 import { ApiAuthBridge } from "@/lib/api-client-config";
 import { SupportChat } from "@/components/SupportChat";
@@ -184,6 +187,15 @@ function AnimatedRoutes() {
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/pricing">
             <Layout><PricingPage /></Layout>
+          </Route>
+          <Route path="/terms">
+            <Layout><TermsPage /></Layout>
+          </Route>
+          <Route path="/privacy">
+            <Layout><PrivacyPage /></Layout>
+          </Route>
+          <Route path="/refunds">
+            <Layout><RefundsPage /></Layout>
           </Route>
           <Route path="/billing/return" component={() => <Protected component={BillingReturnPage} />} />
           <Route path="/studio" component={() => <Protected component={UploadPage} />} />

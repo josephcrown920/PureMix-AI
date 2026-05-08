@@ -38,6 +38,19 @@ export const uploadLimiter = rateLimit({
   },
 });
 
+/** AI suggestion limiter — calls a paid LLM, so we cap per-user usage. */
+export const aiSuggestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: authOrIpKey,
+  message: {
+    error: "Too many AI suggestions. Wait a minute before asking again.",
+    code: "RATE_LIMITED",
+  },
+});
+
 /** Anti-abuse limiter for unauthenticated webhook-like endpoints. */
 export const publicLimiter = rateLimit({
   windowMs: 60 * 1000,
