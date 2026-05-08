@@ -84,13 +84,26 @@ router.get("/billing/verify", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    const userId = (data.metadata as any)?.userId ?? req.userId;
+    const metadataUserId = (data.metadata as any)?.userId as string | undefined;
     const internalPlan = (data.metadata as any)?.internalPlan as
       | PlanId
       | undefined;
     const jobId = (data.metadata as any)?.jobId as number | undefined;
 
-    if (userId && internalPlan) {
+    // Authorization: the verified transaction must belong to the caller.
+    // Without this check, any authenticated user could replay another user's
+    // reference and mutate their account state.
+    if (metadataUserId && metadataUserId !== req.userId) {
+      logger.warn(
+        { reference, callerId: req.userId, txnUserId: metadataUserId },
+        "Cross-account /billing/verify attempt blocked",
+      );
+      res.status(403).json({ error: "Transaction does not belong to caller" });
+      return;
+    }
+
+    const userId = metadataUserId ?? req.userId!;
+    if (internalPlan) {
       await applyPurchase(userId, internalPlan, jobId, data, reference);
     }
 

@@ -48,7 +48,7 @@ This document describes every environment variable used by the project. Variable
 In [Paystack Dashboard → Settings → Webhooks](https://dashboard.paystack.com/#/settings/developer), add:
 
 ```
-https://your-api-domain.com/api/billing/webhook
+https://your-api-domain.com/api/webhooks/paystack
 ```
 
 The webhook endpoint validates the `x-paystack-signature` header with your `PAYSTACK_SECRET_KEY`.

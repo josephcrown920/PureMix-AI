@@ -66,7 +66,13 @@ To sync schema: `pnpm --filter @workspace/db run push`
 
 **Frontend → Netlify:** `netlify.toml` is at repo root. Build command: `pnpm --filter @workspace/music-mastering run build`. Publish: `artifacts/music-mastering/dist/public`. Set `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_PAYSTACK_PUBLIC_KEY` in Netlify env.
 
-**API → Replit (always-on):** Keep existing api-server workflow. Set Paystack webhook to `https://<domain>/api/billing/webhook`.
+**API → Replit (always-on):** Keep existing api-server workflow. Set Paystack webhook to `https://<domain>/api/webhooks/paystack`.
+
+**Split-origin deploy env vars (only if frontend is on a different domain than API):**
+- Frontend: set `VITE_API_BASE_URL=https://<api-domain>` so the React client calls the right host.
+- API: set `FRONTEND_ORIGINS=https://<frontend-domain>` (comma-separated for multiple) so CORS allows the frontend.
+
+If frontend and API share the same origin (e.g. served by api-server in production), neither is needed.
 
 ## Known tradeoffs
 
