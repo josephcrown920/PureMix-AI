@@ -11,6 +11,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -47,3 +68,4 @@ packages = ["ffmpeg-full", "libsndfile", "libxcrypt", "pkg-config", "xsimd"]
 
 [userenv.shared]
 VITE_CLERK_PUBLISHABLE_KEY = "pk_test_d29ya2luZy10YWRwb2xlLTM1LmNsZXJrLmFjY291bnRzLmRldiQ"
+CLERK_PUBLISHABLE_KEY = "pk_test_d29ya2luZy10YWRwb2xlLTM1LmNsZXJrLmFjY291bnRzLmRldiQ"
