@@ -66,6 +66,19 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // Proxy API and webhook traffic to the API server (which binds 8080).
+    // This lets the frontend keep using same-origin /api/... URLs in dev
+    // without configuring CORS or a separate VITE_API_BASE_URL.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/__clerk": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

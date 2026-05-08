@@ -3,7 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import path from "path";
-import { createProxyMiddleware } from "http-proxy-middleware";
 import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
 import webhookRouter from "./routes/webhook";
@@ -92,6 +91,10 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limit runs after Clerk so we can key by user ID when authenticated.
 app.use("/api", clerkMiddleware(), generalLimiter, router);
 
+// In production the API server also serves the built frontend so a single
+// process can host the entire app on one origin. In development the frontend
+// runs its own Vite dev server (see artifacts/music-mastering) which proxies
+// /api back to this server.
 if (process.env["NODE_ENV"] === "production") {
   const distPath = path.resolve(
     import.meta.dirname,
@@ -102,53 +105,12 @@ if (process.env["NODE_ENV"] === "production") {
     res.sendFile(path.join(distPath, "index.html"));
   });
 } else {
-  const vitePort = 5174;
-  app.use(
-    "/",
-    createProxyMiddleware({
-      target: `http://localhost:${vitePort}`,
-      changeOrigin: true,
-      ws: true,
-      on: {
-        error: (_err, _req, res) => {
-          if (res && "writeHead" in res) {
-            (res as import("http").ServerResponse).writeHead(503, {
-              "Content-Type": "text/html",
-            });
-            (res as import("http").ServerResponse).end(
-              "<html><body><h2>Frontend starting...</h2><script>setTimeout(()=>location.reload(),2000)</script></body></html>",
-            );
-          }
-        },
-      },
-    }),
-  );
-
-  startViteDevServer(vitePort);
-}
-
-function startViteDevServer(port: number) {
-  import("child_process").then(({ spawn }) => {
-    const vite = spawn(
-      "pnpm",
-      ["--filter", "@workspace/music-mastering", "run", "dev"],
-      {
-        env: {
-          ...process.env,
-          PORT: String(port),
-          BASE_PATH: "/",
-          FORCE_COLOR: "1",
-        },
-        stdio: "inherit",
-      },
+  // Tiny landing page so hitting the API host directly during dev doesn't
+  // look broken.
+  app.get("/", (_req, res) => {
+    res.type("html").send(
+      "<html><body><h2>Puremix.ai API server</h2><p>The web app is served by Vite on its own port. Open the AI Music Mastering preview to see the app.</p></body></html>",
     );
-    vite.on("error", (err) => {
-      logger.error({ err }, "Failed to start Vite dev server");
-    });
-    vite.on("exit", (code) => {
-      logger.warn({ code }, "Vite dev server exited");
-    });
-    logger.info({ port }, "Starting Vite dev server");
   });
 }
 
