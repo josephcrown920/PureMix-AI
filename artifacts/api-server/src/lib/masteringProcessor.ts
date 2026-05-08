@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { db, masteringJobsTable, usersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { logger } from "./logger";
 import fs from "fs";
 
@@ -155,8 +155,12 @@ export async function processMasteringJob(jobId: number): Promise<void> {
     // Mark failed AND, if the failure is on our side, refund the credit that
     // was reserved when the job was submitted. Day-pass / lifetime users have
     // nothing to refund; only "credit" consumers do.
+    //
+    // CRITICAL: must be idempotent. If this catch fires twice for the same
+    // jobId (e.g. worker retry after a crash), we'd double-refund. We guard
+    // by only refunding when the row's current status is NOT already 'failed'.
     await db.transaction(async (tx) => {
-      await tx
+      const updated = await tx
         .update(masteringJobsTable)
         .set({
           status: "failed",
@@ -165,7 +169,20 @@ export async function processMasteringJob(jobId: number): Promise<void> {
           // Revoke download entitlement so the failed row can't be downloaded.
           downloadUnlocked: false,
         })
-        .where(eq(masteringJobsTable.id, jobId));
+        .where(
+          and(
+            eq(masteringJobsTable.id, jobId),
+            sql`${masteringJobsTable.status} <> 'failed'`,
+          ),
+        )
+        .returning({ id: masteringJobsTable.id });
+
+      // updated.length === 0 means another worker already marked this job
+      // failed and (potentially) already refunded the credit. Skip.
+      if (updated.length === 0) {
+        logger.warn({ jobId }, "Job already marked failed; skipping refund");
+        return;
+      }
 
       if (job.unlockMode === "credit" && job.userId) {
         await tx

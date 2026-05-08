@@ -58,6 +58,53 @@ const RESPONSE_SCHEMA = {
   },
 } as const;
 
+/**
+ * Robustly extract the first JSON object from an LLM reply. Handles:
+ * - bare JSON
+ * - ```json ... ``` fenced blocks
+ * - prose-then-JSON (or vice versa)
+ * - nested braces inside string values
+ *
+ * We scan with a tiny brace-balanced parser that tracks string state so a
+ * `{` or `}` inside a JSON string literal doesn't fool us.
+ */
+function parseJsonObject(raw: string): Partial<SuggestResponse> | null {
+  if (!raw) return null;
+  // Strip code fences if present.
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const haystack = fenced ? fenced[1] : raw;
+
+  const start = haystack.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < haystack.length; i++) {
+    const c = haystack[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        const candidate = haystack.slice(start, i + 1);
+        try {
+          return JSON.parse(candidate) as Partial<SuggestResponse>;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function getClient(): Anthropic | null {
   const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
   const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
@@ -93,28 +140,29 @@ router.post(
     }
 
     try {
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 600,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Track description: ${description}\n\nReturn a JSON object matching this schema:\n${JSON.stringify(RESPONSE_SCHEMA)}`,
-          },
-        ],
-      });
+      const response = await client.messages.create(
+        {
+          model: "claude-haiku-4-5",
+          max_tokens: 600,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content: `Track description: ${description}\n\nReturn a JSON object matching this schema:\n${JSON.stringify(RESPONSE_SCHEMA)}`,
+            },
+          ],
+        },
+        { timeout: 15_000 },
+      );
 
       const textBlock = response.content.find((b) => b.type === "text");
       const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      const parsed = parseJsonObject(raw);
+      if (!parsed) {
         logger.error({ raw }, "AI suggest: no JSON in response");
         res.status(502).json({ error: "Could not parse AI response. Try again." });
         return;
       }
-
-      const parsed = JSON.parse(jsonMatch[0]) as Partial<SuggestResponse>;
       const preset: Preset = VALID_PRESETS.includes(parsed.preset as Preset)
         ? (parsed.preset as Preset)
         : "streaming";

@@ -20,6 +20,8 @@ import {
   buildCustomParamsPayload,
   type TotalControlValue,
 } from "@/components/TotalControlPanel";
+import { AiSuggestPanel } from "@/components/AiSuggestPanel";
+import type { SuggestResponse } from "@/lib/api";
 type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
 
 export function UploadPage() {
@@ -443,6 +445,30 @@ export function UploadPage() {
                   checked={generateVariations}
                   onCheckedChange={setGenerateVariations}
                   data-testid="switch-generate-variations"
+                />
+              </div>
+
+              <div className="mt-5">
+                <AiSuggestPanel
+                  currentPreset={preset}
+                  onApply={(s: SuggestResponse) => {
+                    setPreset(s.preset as CreateMasteringJobBodyPreset);
+                    if (s.generateVariations) setGenerateVariations(true);
+                    const numericParams: Record<string, number> = {};
+                    let voiceCleanup = totalControl.voice_cleanup;
+                    for (const [k, v] of Object.entries(s.customParams)) {
+                      if (k === "voice_cleanup" && typeof v === "boolean") {
+                        voiceCleanup = v;
+                      } else if (typeof v === "number") {
+                        numericParams[k] = v;
+                      }
+                    }
+                    setTotalControl({
+                      enabled: Object.keys(numericParams).length > 0,
+                      voice_cleanup: voiceCleanup,
+                      params: numericParams,
+                    });
+                  }}
                 />
               </div>
 
