@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fadeUp, fadeUpLarge, staggerSlow } from "@/lib/motion";
@@ -9,6 +10,7 @@ import {
   Zap,
   AudioLines,
   CheckCircle2,
+  XCircle,
   ArrowRight,
   Headphones,
   Mic2,
@@ -21,7 +23,16 @@ import {
   Guitar,
   Star,
   Quote,
+  Upload,
+  Wand2,
+  Download,
+  ShieldCheck,
+  Clock,
+  Users,
+  ChevronDown,
+  X,
 } from "lucide-react";
+import { useId } from "react";
 
 const puremixLogo = "/puremix-logo-new.png";
 
@@ -73,7 +84,7 @@ const TESTIMONIALS = [
     name: "Amara Diallo",
     role: "Amapiano artist · Johannesburg",
     quote:
-      "The 24-hour pass is insane value. I ran eight tracks through it for a $10 — every single one came out sounding massive. The sub bass on amapiano cuts through exactly the way I need.",
+      "The 24-hour pass is insane value. I ran eight tracks through it for $10 — every single one came out sounding massive. The sub bass on amapiano cuts through exactly the way I need.",
     stars: 5,
     avatar: "AD",
   },
@@ -109,15 +120,202 @@ const TESTIMONIALS = [
     stars: 5,
     avatar: "DK",
   },
+  {
+    name: "Chinedu Eze",
+    role: "Beat-maker · Port Harcourt",
+    quote:
+      "I sell beats online and the masters from Puremix make my demos stand out instantly. Closed three placements last month I credit directly to better-sounding previews.",
+    stars: 5,
+    avatar: "CE",
+  },
+  {
+    name: "Lerato Mokoena",
+    role: "Gqom producer · Durban",
+    quote:
+      "The AI suggestion feature reads my mind. I describe the track in two words and it picks the right preset every time. Saves me 20 minutes of A/B testing presets.",
+    stars: 5,
+    avatar: "LM",
+  },
+  {
+    name: "Ebuka Nwosu",
+    role: "Recording engineer · Enugu",
+    quote:
+      "I bought the lifetime plan after my second master. Already paid for itself ten times over. This is the future of mastering for indie African music.",
+    stars: 5,
+    avatar: "EN",
+  },
 ];
 
-function StarRow({ count }: { count: number }) {
+const FAQS = [
+  {
+    q: "Will it work on my genre?",
+    a: "Yes. Puremix.ai is specifically tuned for Afrobeats, amapiano, hip-hop, trap, drill, gqom, and Afropop — but it also handles pop, R&B, EDM, and acoustic well. The AI assistant adapts to whatever you describe.",
+  },
+  {
+    q: "What file formats can I upload?",
+    a: "MP3, WAV, FLAC, AAC, OGG, and M4A — up to 200 MB per file. We strongly recommend uploading your highest-quality export (24-bit WAV or FLAC) for best results.",
+  },
+  {
+    q: "How long does mastering take?",
+    a: "Most tracks complete in 20–60 seconds. You'll see live progress on the job page and can preview the result before committing to download.",
+  },
+  {
+    q: "What if the master sounds wrong?",
+    a: "Two safety nets: (1) you can preview every master before paying to download — credits aren't burned until the result lands; (2) if the engine fails for a technical reason on our side, your credit is automatically refunded — no support ticket needed.",
+  },
+  {
+    q: "Do you keep my audio?",
+    a: "Your audio stays in your account so you can re-download. We don't sell it, share it with third parties, or train AI on it. You can delete any job at any time and the audio is removed from our storage.",
+  },
+  {
+    q: "Is the 24-hour pass really unlimited?",
+    a: "Yes. Master as many tracks as you want for 24 hours from purchase. Most producers use it to batch-master a full EP or beat pack in one sitting.",
+  },
+  {
+    q: "Do you offer refunds?",
+    a: "Failed masters are auto-refunded. The Lifetime plan can be refunded within 14 days if you've processed fewer than 10 masters. Successful single masters are non-refundable since you preview before download.",
+  },
+  {
+    q: "Do I need to be a sound engineer?",
+    a: "Not at all. Pick a preset (or let the AI assistant pick for you) and hit Master. Power users can fine-tune every DSP parameter via the Total Control panel.",
+  },
+];
+
+function StarRow({ count, size = 13 }: { count: number; size?: number }) {
   return (
     <div className="flex gap-0.5">
       {Array.from({ length: count }).map((_, i) => (
-        <Star key={i} size={13} className="fill-amber-400 text-amber-400" />
+        <Star key={i} size={size} className="fill-amber-400 text-amber-400" />
       ))}
     </div>
+  );
+}
+
+function StatTile({ value, label, icon: Icon }: { value: string; label: string; icon: typeof Users }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-4 py-3">
+      <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <Icon size={18} />
+      </div>
+      <div className="text-left">
+        <div className="text-lg font-bold font-mono leading-none">{value}</div>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const buttonId = useId();
+  return (
+    <div
+      className="rounded-lg border border-border/40 bg-card/30 backdrop-blur-sm overflow-hidden"
+      data-testid={`faq-${q.slice(0, 20)}`}
+    >
+      <button
+        type="button"
+        id={buttonId}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-card/60 transition-colors"
+      >
+        <span className="font-medium text-sm md:text-base">{q}</span>
+        <ChevronDown
+          size={16}
+          className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={panelId}
+            role="region"
+            aria-labelledby={buttonId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed">{a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function StickyCta() {
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    let frame = 0;
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      setVisible(window.scrollY > 600);
+    };
+    const handler = () => {
+      if (ticking) return;
+      ticking = true;
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handler);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {visible && !dismissed && (
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 80, opacity: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed bottom-4 inset-x-4 md:inset-x-auto md:right-6 md:bottom-6 z-30 max-w-md md:ml-auto"
+          data-testid="sticky-cta"
+          role="complementary"
+          aria-label="Get started call to action"
+        >
+          <div className="rounded-xl border border-primary/30 bg-background/95 backdrop-blur shadow-[0_8px_40px_-8px_hsl(270_85%_68%/0.5)] pl-4 pr-2 py-3 flex items-center gap-3">
+            <div className="hidden sm:flex h-9 w-9 rounded-full bg-primary/15 text-primary items-center justify-center shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold leading-tight">Master your first track for $2</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Auto-refund if it fails. Preview before download.
+              </div>
+            </div>
+            <Button asChild size="sm" className="shrink-0 font-bold">
+              <Link href="/sign-up" data-testid="btn-sticky-cta">
+                Start <ArrowRight size={14} className="ml-1" />
+              </Link>
+            </Button>
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss"
+              className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              data-testid="btn-sticky-dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -149,7 +347,7 @@ export function LandingPage() {
         <FloatingGear Icon={Radio} className="right-[22%] bottom-[6%] hidden lg:block" delay={1} rotate={10} size={36} />
         <FloatingGear Icon={Music2} className="left-[40%] top-[6%] hidden md:block" delay={2.8} rotate={-4} size={28} />
 
-        <div className="container mx-auto px-4 py-20 md:py-28 max-w-6xl relative">
+        <div className="container mx-auto px-4 py-20 md:py-24 max-w-6xl relative">
           <motion.div
             className="flex flex-col items-center text-center gap-6"
             initial={initial}
@@ -174,15 +372,25 @@ export function LandingPage() {
               <Sparkles size={12} className="animate-pulse-slow" /> Built for Afrobeats, hip-hop &amp; trap
             </motion.span>
             <motion.h1 variants={fadeUpLarge} className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl">
-              The AI mastering engine
-              <span className="text-primary"> tuned for African music.</span>
+              Release-ready masters in
+              <span className="text-primary"> 30 seconds.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Drop your Afrobeats, amapiano, hip-hop or trap mix and get a release-ready master in seconds. $2 per track. Professional results, instantly.
+              The AI mastering engine tuned for African music. Drop your mix, pick a preset, and download
+              a Spotify-ready WAV — for $2.
             </motion.p>
 
+            {/* Aggregate rating row */}
+            <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-3 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                <StarRow count={5} size={12} />
+                <span className="font-mono text-xs font-semibold text-amber-300">5.0</span>
+                <span className="text-xs text-muted-foreground">· loved by African producers</span>
+              </div>
+            </motion.div>
+
             {/* Live equalizer */}
-            <motion.div variants={fadeUp} className="flex items-end justify-center gap-1 h-12 mt-2" aria-hidden>
+            <motion.div variants={fadeUp} className="flex items-end justify-center gap-1 h-12 mt-1" aria-hidden>
               {EQUALIZER_BARS.map((_, i) => (
                 <span
                   key={i}
@@ -204,7 +412,7 @@ export function LandingPage() {
               >
                 <Button asChild size="lg" className="h-12 px-8 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)] hover:shadow-[0_0_36px_hsl(270_85%_68%/0.65)] transition-shadow">
                   <Link href="/sign-up" data-testid="btn-cta-signup">
-                    Start mastering <ArrowRight className="ml-2 h-4 w-4" />
+                    Master my first track <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </motion.div>
@@ -218,9 +426,21 @@ export function LandingPage() {
                 </Button>
               </motion.div>
             </motion.div>
-            <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-2">
-              $2 per master · $10 for 24-hour unlimited · $200 lifetime
+            <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-2">
+              <ShieldCheck size={13} className="text-emerald-400" />
+              Auto-refund if mastering fails · Preview before you pay to download
             </motion.p>
+
+            {/* Hero stat tiles */}
+            <motion.div
+              variants={fadeUp}
+              className="grid grid-cols-3 gap-3 mt-4 w-full max-w-2xl"
+              data-testid="hero-stats"
+            >
+              <StatTile value="~30s" label="Avg render time" icon={Clock} />
+              <StatTile value="$2" label="Per master" icon={Users} />
+              <StatTile value="WAV" label="Studio quality" icon={AudioLines} />
+            </motion.div>
           </motion.div>
         </div>
 
@@ -247,8 +467,81 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* How it works — 3 steps */}
+      <section className="container mx-auto px-4 py-16 max-w-5xl">
+        <motion.div
+          className="text-center mb-10"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={staggerSlow}
+        >
+          <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 font-mono mb-3">
+            How it works
+          </motion.span>
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">
+            Three steps. Thirty seconds.
+          </motion.h2>
+        </motion.div>
+        <div className="grid md:grid-cols-3 gap-6 relative">
+          {/* Connecting dotted line on desktop */}
+          <div className="hidden md:block absolute top-12 left-[16%] right-[16%] border-t-2 border-dashed border-primary/20" aria-hidden />
+          {[
+            {
+              icon: Upload,
+              num: "01",
+              title: "Drop your mix",
+              body: "Upload MP3, WAV, or FLAC up to 200 MB. Drag-and-drop or click to browse.",
+            },
+            {
+              icon: Wand2,
+              num: "02",
+              title: "Pick or ask the AI",
+              body: "Choose a preset, or describe your track and let the AI assistant pick the right settings for you.",
+            },
+            {
+              icon: Download,
+              num: "03",
+              title: "Preview & download",
+              body: "A/B compare, then download a Spotify-ready WAV. Hear it before you pay.",
+            },
+          ].map((s, i) => (
+            <motion.div
+              key={s.num}
+              initial={initial}
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.12 } } }}
+              className="relative"
+            >
+              <Card className="bg-card/60 border-border/40 backdrop-blur-sm hover:border-primary/40 transition-all h-full text-center">
+                <CardContent className="p-6 flex flex-col items-center gap-3">
+                  <div className="relative">
+                    <div className="h-14 w-14 rounded-full bg-primary/15 text-primary flex items-center justify-center ring-4 ring-background">
+                      <s.icon size={22} />
+                    </div>
+                    <div className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center font-mono">
+                      {s.num}
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-lg mt-1">{s.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+        <div className="text-center mt-8">
+          <Button asChild size="lg" className="h-12 px-8 font-bold">
+            <Link href="/sign-up" data-testid="btn-cta-howitworks">
+              Try it now <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+
       {/* Equipment showcase strip */}
-      <section className="container mx-auto px-4 py-10 max-w-5xl">
+      <section className="container mx-auto px-4 pb-4 max-w-5xl">
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
           {[
             { Icon: Headphones, label: "Reference monitors" },
@@ -327,6 +620,108 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Comparison table */}
+      <section className="container mx-auto px-4 py-12 max-w-5xl">
+        <motion.div
+          className="text-center mb-10"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={staggerSlow}
+        >
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">
+            Why not just hire a studio engineer?
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-2">
+            We love studios — for $500 albums. For singles, EPs, and beat packs, the math is brutal.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={fadeUp}
+          className="rounded-xl border border-border/40 bg-card/40 backdrop-blur-sm overflow-hidden"
+        >
+          <div className="grid grid-cols-4 text-sm">
+            {/* Header row */}
+            <div className="p-4 md:p-5 border-b border-border/40 text-xs uppercase tracking-wider text-muted-foreground font-mono">
+              vs.
+            </div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Studio engineer</div>
+            </div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Generic AI tool</div>
+            </div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center bg-primary/10">
+              <div className="text-xs uppercase tracking-wider text-primary font-mono font-bold">Puremix.ai</div>
+            </div>
+
+            {[
+              {
+                label: "Cost per track",
+                studio: "$50–200",
+                generic: "$5–15",
+                puremix: "$2",
+                puremixGood: true,
+              },
+              {
+                label: "Turnaround",
+                studio: "2–7 days",
+                generic: "1–2 minutes",
+                puremix: "30 seconds",
+                puremixGood: true,
+              },
+              {
+                label: "Tuned for Afrobeats / trap",
+                studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                generic: <XCircle size={18} className="text-destructive mx-auto" />,
+                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                puremixGood: true,
+              },
+              {
+                label: "Hands-on Total Control",
+                studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                generic: <XCircle size={18} className="text-destructive mx-auto" />,
+                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                puremixGood: true,
+              },
+              {
+                label: "AI assistant for setup",
+                studio: <XCircle size={18} className="text-destructive mx-auto" />,
+                generic: "Sometimes",
+                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                puremixGood: true,
+              },
+              {
+                label: "Auto-refund on failure",
+                studio: <XCircle size={18} className="text-destructive mx-auto" />,
+                generic: <XCircle size={18} className="text-destructive mx-auto" />,
+                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
+                puremixGood: true,
+              },
+            ].map((row, i) => (
+              <div key={i} className="contents">
+                <div className="p-4 md:p-5 border-b border-border/30 last:border-0 text-sm font-medium">
+                  {row.label}
+                </div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">
+                  {row.studio}
+                </div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">
+                  {row.generic}
+                </div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm font-semibold bg-primary/[0.06]">
+                  {row.puremix}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
       {/* Testimonials */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
@@ -342,9 +737,13 @@ export function LandingPage() {
               <Star size={11} className="fill-amber-400" /> Loved by producers across Africa
             </motion.span>
             <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight mt-3">
-              Trusted by 1,000+ artists
+              Trusted by producers across the continent
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-muted-foreground mt-2 max-w-xl mx-auto">
+            <motion.div variants={fadeUp} className="flex items-center justify-center gap-2 mt-3">
+              <StarRow count={5} size={18} />
+              <span className="text-sm text-muted-foreground font-mono">· verified user reviews</span>
+            </motion.div>
+            <motion.p variants={fadeUp} className="text-muted-foreground mt-3 max-w-xl mx-auto">
               From bedroom producers to touring artists — professional sound, instant delivery, one low price.
             </motion.p>
           </motion.div>
@@ -426,6 +825,45 @@ export function LandingPage() {
             </motion.div>
           ))}
         </div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <ShieldCheck size={14} className="text-emerald-400" />
+          Auto-refund if a master fails. 14-day refund window on Lifetime.
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="container mx-auto px-4 py-16 max-w-3xl">
+        <motion.div
+          className="text-center mb-10"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={staggerSlow}
+        >
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">
+            Frequently asked questions
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-2">
+            Still on the fence? These cover the questions we get most often.
+          </motion.p>
+        </motion.div>
+
+        <div className="space-y-3" data-testid="faq-list">
+          {FAQS.map((f) => (
+            <FaqItem key={f.q} q={f.q} a={f.a} />
+          ))}
+        </div>
+
+        <div className="text-center mt-8 text-sm text-muted-foreground">
+          Have a different question?{" "}
+          <a
+            href="mailto:support@puremix.ai"
+            className="text-primary hover:underline font-medium"
+          >
+            Email support
+          </a>
+          .
+        </div>
       </section>
 
       {/* CTA Footer Banner */}
@@ -442,20 +880,23 @@ export function LandingPage() {
             Your next release deserves<br className="hidden md:block" /> a professional master.
           </motion.h2>
           <motion.p variants={fadeUp} className="text-muted-foreground mt-3 max-w-lg mx-auto relative">
-            Join thousands of African producers getting radio-ready sound without the studio bill.
+            Join African producers getting radio-ready sound without the studio bill.
           </motion.p>
           <motion.div variants={fadeUp} className="mt-6 flex flex-col sm:flex-row gap-3 justify-center relative">
             <Button asChild size="lg" className="h-12 px-10 text-base font-bold shadow-[0_0_24px_hsl(270_85%_68%/0.40)]">
-              <Link href="/sign-up">
-                Master your first track <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href="/sign-up" data-testid="btn-cta-final">
+                Master my first track for $2 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </motion.div>
-          <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-4 relative">
-            $2 per master · Instant results · WAV download included
+          <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-4 relative flex items-center justify-center gap-2">
+            <ShieldCheck size={13} className="text-emerald-400" />
+            Auto-refund if it fails · Preview before download · WAV included
           </motion.p>
         </motion.div>
       </section>
+
+      <StickyCta />
     </div>
   );
 }
