@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense, useId } from "react";
 import { Link } from "wouter";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,15 @@ import {
   Users,
   ChevronDown,
   X,
+  MessageSquare,
+  FileText,
+  Music3,
+  Gauge,
+  Layers,
+  Volume2,
+  Cable,
+  CircuitBoard,
 } from "lucide-react";
-import { useId } from "react";
 
 const puremixLogo = "/puremix-logo-new.png";
 
@@ -72,113 +79,27 @@ function FloatingGear({
 }
 
 const TESTIMONIALS = [
-  {
-    name: "Tayo Adebayo",
-    role: "Afrobeats producer · Lagos",
-    quote:
-      "I've been using expensive studio plug-ins for years. Puremix.ai gave my track that polished streaming-ready sound in 20 seconds flat. My clients can't believe I didn't bounce to a mastering engineer.",
-    stars: 5,
-    avatar: "TA",
-  },
-  {
-    name: "Amara Diallo",
-    role: "Amapiano artist · Johannesburg",
-    quote:
-      "The 24-hour pass is insane value. I ran eight tracks through it for $10 — every single one came out sounding massive. The sub bass on amapiano cuts through exactly the way I need.",
-    stars: 5,
-    avatar: "AD",
-  },
-  {
-    name: "Kweku Mensah",
-    role: "Hip-hop mixer · Accra",
-    quote:
-      "Side-by-side A/B comparison on the job page sold me immediately. I can hear the exact difference the AI made. Turned a flat rough mix into a radio-ready track.",
-    stars: 5,
-    avatar: "KM",
-  },
-  {
-    name: "Funmi Okonkwo",
-    role: "Trap/Afro-trap · Abuja",
-    quote:
-      "Puremix.ai genuinely understands African music. Other AI mastering tools make my trap beats sound washed out — this one preserves the punch and adds that professional sheen.",
-    stars: 5,
-    avatar: "FO",
-  },
-  {
-    name: "Siphokazi Dlamini",
-    role: "Afropop vocalist · Cape Town",
-    quote:
-      "The vocals sit perfectly in the mix after mastering. I was worried AI wouldn't handle the bright, forward vocal style I use in afropop, but it actually enhanced it.",
-    stars: 5,
-    avatar: "SD",
-  },
-  {
-    name: "DJ Kolade",
-    role: "Club DJ · Nairobi",
-    quote:
-      "Club preset is exactly what I needed. I master my edits right before a set and they hit the system perfectly. $2 per track is nothing compared to what a human engineer charges.",
-    stars: 5,
-    avatar: "DK",
-  },
-  {
-    name: "Chinedu Eze",
-    role: "Beat-maker · Port Harcourt",
-    quote:
-      "I sell beats online and the masters from Puremix make my demos stand out instantly. Closed three placements last month I credit directly to better-sounding previews.",
-    stars: 5,
-    avatar: "CE",
-  },
-  {
-    name: "Lerato Mokoena",
-    role: "Gqom producer · Durban",
-    quote:
-      "The AI suggestion feature reads my mind. I describe the track in two words and it picks the right preset every time. Saves me 20 minutes of A/B testing presets.",
-    stars: 5,
-    avatar: "LM",
-  },
-  {
-    name: "Ebuka Nwosu",
-    role: "Recording engineer · Enugu",
-    quote:
-      "I bought the lifetime plan after my second master. Already paid for itself ten times over. This is the future of mastering for indie African music.",
-    stars: 5,
-    avatar: "EN",
-  },
+  { name: "Tayo Adebayo", role: "Afrobeats producer · Lagos", quote: "I've been using expensive studio plug-ins for years. Puremix.ai gave my track that polished streaming-ready sound in 20 seconds flat. My clients can't believe I didn't bounce to a mastering engineer.", stars: 5, avatar: "TA" },
+  { name: "Amara Diallo", role: "Amapiano artist · Johannesburg", quote: "The 24-hour pass is insane value. I ran eight tracks through it for $10 — every single one came out sounding massive. The sub bass on amapiano cuts through exactly the way I need.", stars: 5, avatar: "AD" },
+  { name: "Kweku Mensah", role: "Hip-hop mixer · Accra", quote: "Side-by-side A/B comparison on the job page sold me immediately. I can hear the exact difference the AI made. Turned a flat rough mix into a radio-ready track.", stars: 5, avatar: "KM" },
+  { name: "Funmi Okonkwo", role: "Trap/Afro-trap · Abuja", quote: "Puremix.ai genuinely understands African music. Other AI mastering tools make my trap beats sound washed out — this one preserves the punch and adds that professional sheen.", stars: 5, avatar: "FO" },
+  { name: "Siphokazi Dlamini", role: "Afropop vocalist · Cape Town", quote: "The vocals sit perfectly in the mix after mastering. I was worried AI wouldn't handle the bright, forward vocal style I use in afropop, but it actually enhanced it.", stars: 5, avatar: "SD" },
+  { name: "DJ Kolade", role: "Club DJ · Nairobi", quote: "Club preset is exactly what I needed. I master my edits right before a set and they hit the system perfectly. $2 per track is nothing compared to what a human engineer charges.", stars: 5, avatar: "DK" },
+  { name: "Chinedu Eze", role: "Beat-maker · Port Harcourt", quote: "I sell beats online and the masters from Puremix make my demos stand out instantly. Closed three placements last month I credit directly to better-sounding previews.", stars: 5, avatar: "CE" },
+  { name: "Lerato Mokoena", role: "Gqom producer · Durban", quote: "The prompt-mixing chat reads my mind. I describe the track in two words and it picks the right preset every time. Saves me 20 minutes of A/B testing presets.", stars: 5, avatar: "LM" },
+  { name: "Ebuka Nwosu", role: "Recording engineer · Enugu", quote: "I bought the lifetime plan after my second master. Already paid for itself ten times over. This is the future of mastering for indie African music.", stars: 5, avatar: "EN" },
 ];
 
 const FAQS = [
-  {
-    q: "Will it work on my genre?",
-    a: "Yes. Puremix.ai is specifically tuned for Afrobeats, amapiano, hip-hop, trap, drill, gqom, and Afropop — but it also handles pop, R&B, EDM, and acoustic well. The AI assistant adapts to whatever you describe.",
-  },
-  {
-    q: "What file formats can I upload?",
-    a: "MP3, WAV, FLAC, AAC, OGG, and M4A — up to 200 MB per file. We strongly recommend uploading your highest-quality export (24-bit WAV or FLAC) for best results.",
-  },
-  {
-    q: "How long does mastering take?",
-    a: "Most tracks complete in 20–60 seconds. You'll see live progress on the job page and can preview the result before committing to download.",
-  },
-  {
-    q: "What if the master sounds wrong?",
-    a: "Two safety nets: (1) you can preview every master before paying to download — credits aren't burned until the result lands; (2) if the engine fails for a technical reason on our side, your credit is automatically refunded — no support ticket needed.",
-  },
-  {
-    q: "Do you keep my audio?",
-    a: "Your audio stays in your account so you can re-download. We don't sell it, share it with third parties, or train AI on it. You can delete any job at any time and the audio is removed from our storage.",
-  },
-  {
-    q: "Is the 24-hour pass really unlimited?",
-    a: "Yes. Master as many tracks as you want for 24 hours from purchase. Most producers use it to batch-master a full EP or beat pack in one sitting.",
-  },
-  {
-    q: "Do you offer refunds?",
-    a: "Failed masters are auto-refunded. The Lifetime plan can be refunded within 14 days if you've processed fewer than 10 masters. Successful single masters are non-refundable since you preview before download.",
-  },
-  {
-    q: "Do I need to be a sound engineer?",
-    a: "Not at all. Pick a preset (or let the AI assistant pick for you) and hit Master. Power users can fine-tune every DSP parameter via the Total Control panel.",
-  },
+  { q: "Will it work on my genre?", a: "Yes. Puremix.ai is specifically tuned for Afrobeats, amapiano, hip-hop, trap, drill, gqom, and Afropop — but it also handles pop, R&B, EDM, and acoustic well. The AI assistant adapts to whatever you describe." },
+  { q: "What file formats can I upload?", a: "MP3, WAV, FLAC, AAC, OGG, and M4A — up to 200 MB per file. We strongly recommend uploading your highest-quality export (24-bit WAV or FLAC) for best results." },
+  { q: "How long does mastering take?", a: "Most tracks complete in 20–60 seconds. You'll see live progress on the job page and can preview the result before committing to download." },
+  { q: "What about the lyrics transcriber?", a: "Free with any paid master. Once your track is done, hit \"Transcribe lyrics\" on the job page and we'll pull a clean text sheet using state-of-the-art speech-to-text. Perfect for DSP submissions, sync briefs, and lyric videos." },
+  { q: "What if the master sounds wrong?", a: "Two safety nets: (1) you can preview every master before paying to download — credits aren't burned until the result lands; (2) if the engine fails for a technical reason on our side, your credit is automatically refunded — no support ticket needed." },
+  { q: "Do you keep my audio?", a: "Your audio stays in your account so you can re-download. We don't sell it, share it with third parties, or train AI on it. You can delete any job at any time and the audio is removed from our storage." },
+  { q: "Is the 24-hour pass really unlimited?", a: "Yes. Master as many tracks as you want for 24 hours from purchase. Most producers use it to batch-master a full EP or beat pack in one sitting." },
+  { q: "Do you offer refunds?", a: "Failed masters are auto-refunded. The Lifetime plan can be refunded within 14 days if you've processed fewer than 10 masters. Successful single masters are non-refundable since you preview before download." },
+  { q: "Do I need to be a sound engineer?", a: "Not at all. Pick a preset (or chat with the AI engineer) and hit Master. Power users can fine-tune every DSP parameter via the Total Control panel." },
 ];
 
 function StarRow({ count, size = 13 }: { count: number; size?: number }) {
@@ -191,14 +112,25 @@ function StarRow({ count, size = 13 }: { count: number; size?: number }) {
   );
 }
 
-function StatTile({ value, label, icon: Icon }: { value: string; label: string; icon: typeof Users }) {
+function GlowStatTile({
+  value,
+  label,
+  icon: Icon,
+}: {
+  value: string;
+  label: string;
+  icon: typeof Users;
+}) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm px-4 py-3">
-      <div className="h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+    <div
+      className="glow-tile rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm px-4 py-3 flex items-center gap-3 relative overflow-hidden"
+      data-testid={`stat-tile-${label.toLowerCase().replace(/\s+/g, "-")}`}
+    >
+      <div className="h-10 w-10 rounded-md bg-primary/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/30 shadow-[0_0_18px_hsl(270_85%_68%/0.45)]">
         <Icon size={18} />
       </div>
-      <div className="text-left">
-        <div className="text-lg font-bold font-mono leading-none">{value}</div>
+      <div className="text-left relative z-10">
+        <div className="text-xl font-bold font-mono leading-none text-foreground">{value}</div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
           {label}
         </div>
@@ -206,6 +138,57 @@ function StatTile({ value, label, icon: Icon }: { value: string; label: string; 
     </div>
   );
 }
+
+const SERVICES = [
+  {
+    icon: AudioLines,
+    title: "AI mastering engine",
+    body: "Streaming, club, warm-vinyl, and broadcast presets calibrated for African music. Studio-grade EQ, multi-band compression, and true-peak limiting in ~30 seconds.",
+    badge: "Core",
+  },
+  {
+    icon: MessageSquare,
+    title: "Prompt-mix chat",
+    body: "Talk to the AI engineer like a human. \"Make the 808s harder,\" \"warmer top end,\" \"open it up for the club\" — it adjusts settings live, multi-turn.",
+    badge: "New",
+  },
+  {
+    icon: Music3,
+    title: "Reference song suggestions",
+    body: "While you mix, the AI surfaces 2–3 commercial tracks that sound like your vibe so you have a sonic target. One click to open in Spotify.",
+    badge: "New",
+  },
+  {
+    icon: FileText,
+    title: "Lyrics transcriber",
+    body: "Pull a clean lyrics sheet from any master in seconds — using state-of-the-art Whisper STT. Free with every paid master.",
+    badge: "Included",
+  },
+  {
+    icon: Layers,
+    title: "A/B preview & comparison",
+    body: "Side-by-side waveforms with synced playback. Hear the original vs. mastered before you ever pay to download.",
+    badge: "Free",
+  },
+  {
+    icon: Sliders,
+    title: "Total Control panel",
+    body: "Override the AI when you need to. Tune low-shelf, transient attack, stereo width, voice cleanup — every DSP knob is exposed.",
+    badge: "Pro",
+  },
+  {
+    icon: Sparkles,
+    title: "AI variations",
+    body: "Generate 3 master takes (clean, punchy, open) on one upload and pick the one that hits hardest. Great when you're undecided.",
+    badge: "1-click",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Auto-refund on failure",
+    body: "If the engine fails on our side, your credit comes back instantly. No tickets, no waiting. Built-in trust.",
+    badge: "Promise",
+  },
+];
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -319,6 +302,19 @@ function StickyCta() {
   );
 }
 
+const EQUIPMENT = [
+  { Icon: Headphones, label: "Reference monitors" },
+  { Icon: Sliders, label: "EQ & dynamics" },
+  { Icon: Mic2, label: "Vocal clarity" },
+  { Icon: Disc3, label: "Stereo imaging" },
+  { Icon: Speaker, label: "Loudness LUFS" },
+  { Icon: Radio, label: "Broadcast ready" },
+  { Icon: Gauge, label: "True-peak limiter" },
+  { Icon: Volume2, label: "Multi-band comp" },
+  { Icon: Cable, label: "Mastering chain" },
+  { Icon: CircuitBoard, label: "DSP engine" },
+];
+
 export function LandingPage() {
   const reduce = useReducedMotion();
   const initial = reduce ? false : "hidden";
@@ -346,6 +342,8 @@ export function LandingPage() {
         <FloatingGear Icon={Guitar} className="left-[20%] top-[8%] hidden lg:block" delay={3} rotate={-18} size={36} />
         <FloatingGear Icon={Radio} className="right-[22%] bottom-[6%] hidden lg:block" delay={1} rotate={10} size={36} />
         <FloatingGear Icon={Music2} className="left-[40%] top-[6%] hidden md:block" delay={2.8} rotate={-4} size={28} />
+        <FloatingGear Icon={Gauge} className="right-[40%] top-[10%] hidden lg:block" delay={3.4} rotate={8} size={30} />
+        <FloatingGear Icon={CircuitBoard} className="right-[2%] bottom-[36%] hidden lg:block" delay={2.2} rotate={-10} size={36} />
 
         <div className="container mx-auto px-4 py-20 md:py-24 max-w-6xl relative">
           <motion.div
@@ -364,7 +362,7 @@ export function LandingPage() {
               />
               <div className="absolute -inset-3 rounded-full border border-dashed border-primary/20 animate-spin-slower" />
               <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-full overflow-hidden ring-2 ring-primary/40 shadow-[0_0_40px_hsl(270_85%_68%/0.60)] bg-[hsl(265_40%_7%)]">
-                <img src={puremixLogo} alt="Puremix.ai" className="h-full w-full object-contain p-1" />
+                <img src={puremixLogo} alt="Puremix.ai" loading="eager" decoding="async" fetchPriority="high" className="h-full w-full object-contain p-1" />
               </div>
             </motion.div>
 
@@ -376,8 +374,8 @@ export function LandingPage() {
               <span className="text-primary"> 30 seconds.</span>
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              The AI mastering engine tuned for African music. Drop your mix, pick a preset, and download
-              a Spotify-ready WAV — for $2.
+              The AI mastering engine tuned for African music. Chat with the engine, get reference songs,
+              and ship a Spotify-ready WAV — for $2.
             </motion.p>
 
             {/* Aggregate rating row */}
@@ -422,7 +420,7 @@ export function LandingPage() {
                 transition={{ type: "spring", stiffness: 400, damping: 18 }}
               >
                 <Button asChild size="lg" variant="outline" className="h-12 px-8 text-base">
-                  <Link href="/pricing" data-testid="btn-cta-pricing">See pricing</Link>
+                  <a href="#pricing" data-testid="btn-cta-pricing">See pricing</a>
                 </Button>
               </motion.div>
             </motion.div>
@@ -431,15 +429,15 @@ export function LandingPage() {
               Auto-refund if mastering fails · Preview before you pay to download
             </motion.p>
 
-            {/* Hero stat tiles */}
+            {/* Hero stat tiles — glowing */}
             <motion.div
               variants={fadeUp}
               className="grid grid-cols-3 gap-3 mt-4 w-full max-w-2xl"
               data-testid="hero-stats"
             >
-              <StatTile value="~30s" label="Avg render time" icon={Clock} />
-              <StatTile value="$2" label="Per master" icon={Users} />
-              <StatTile value="WAV" label="Studio quality" icon={AudioLines} />
+              <GlowStatTile value="~30s" label="Avg render" icon={Clock} />
+              <GlowStatTile value="$2" label="Per master" icon={Music2} />
+              <GlowStatTile value="WAV" label="Studio quality" icon={AudioLines} />
             </motion.div>
           </motion.div>
         </div>
@@ -448,22 +446,146 @@ export function LandingPage() {
         <div className="relative h-20 w-full overflow-hidden border-y border-border/30 bg-card/20">
           <div className="absolute inset-y-0 left-0 w-[200%] flex items-center animate-wave">
             <svg viewBox="0 0 1200 80" className="h-full w-1/2 text-primary/60" preserveAspectRatio="none" aria-hidden>
-              <path
-                d="M0 40 Q 30 10, 60 40 T 120 40 T 180 40 T 240 40 T 300 40 T 360 40 T 420 40 T 480 40 T 540 40 T 600 40 T 660 40 T 720 40 T 780 40 T 840 40 T 900 40 T 960 40 T 1020 40 T 1080 40 T 1140 40 T 1200 40"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
+              <path d="M0 40 Q 30 10, 60 40 T 120 40 T 180 40 T 240 40 T 300 40 T 360 40 T 420 40 T 480 40 T 540 40 T 600 40 T 660 40 T 720 40 T 780 40 T 840 40 T 900 40 T 960 40 T 1020 40 T 1080 40 T 1140 40 T 1200 40" fill="none" stroke="currentColor" strokeWidth="2" />
             </svg>
             <svg viewBox="0 0 1200 80" className="h-full w-1/2 text-primary/60" preserveAspectRatio="none" aria-hidden>
-              <path
-                d="M0 40 Q 30 70, 60 40 T 120 40 T 180 40 T 240 40 T 300 40 T 360 40 T 420 40 T 480 40 T 540 40 T 600 40 T 660 40 T 720 40 T 780 40 T 840 40 T 900 40 T 960 40 T 1020 40 T 1080 40 T 1140 40 T 1200 40"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
+              <path d="M0 40 Q 30 70, 60 40 T 120 40 T 180 40 T 240 40 T 300 40 T 360 40 T 420 40 T 480 40 T 540 40 T 600 40 T 660 40 T 720 40 T 780 40 T 840 40 T 900 40 T 960 40 T 1020 40 T 1080 40 T 1140 40 T 1200 40" fill="none" stroke="currentColor" strokeWidth="2" />
             </svg>
           </div>
+        </div>
+      </section>
+
+      {/* PRICING — moved up to be the second thing producers see. */}
+      <section id="pricing" className="container mx-auto px-4 py-16 max-w-5xl scroll-mt-20">
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 font-mono mb-3">
+            Simple pricing
+          </span>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">No subscriptions. No surprises.</h2>
+          <p className="text-muted-foreground mt-2">Pay once per track, or unlock unlimited masters.</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            { name: "Single Master", price: "$2", desc: "One track, full WAV download", cta: "Buy now", to: "/pricing", featured: false, perks: ["Lyrics transcribe included", "Preview before pay", "Auto-refund on fail"] },
+            { name: "24-Hour Pass", price: "$10", desc: "Unlimited masters for 24h", cta: "Best value", to: "/pricing", featured: true, perks: ["Unlimited tracks", "Unlimited lyrics", "Batch a whole EP"] },
+            { name: "Lifetime", price: "$200", desc: "Unlimited forever, one payment", cta: "Buy lifetime", to: "/pricing", featured: false, perks: ["Forever access", "All future features", "14-day refund window"] },
+          ].map((p, i) => (
+            <motion.div
+              key={p.name}
+              initial={initial}
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
+            >
+              <Card
+                className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(270_85%_68%/0.20)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform h-full`}
+              >
+                {p.featured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
+                    Best value
+                  </div>
+                )}
+                <CardContent className="p-6 flex flex-col gap-4 text-center">
+                  <h3 className="font-bold text-xl">{p.name}</h3>
+                  <div className="text-4xl font-bold font-mono">{p.price}</div>
+                  <p className="text-sm text-muted-foreground">{p.desc}</p>
+                  <ul className="text-xs text-muted-foreground space-y-1 text-left mx-auto">
+                    {p.perks.map((perk) => (
+                      <li key={perk} className="flex items-start gap-2">
+                        <CheckCircle2 size={12} className="text-emerald-400 mt-0.5 shrink-0" /> {perk}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button asChild className="w-full mt-auto" variant={p.featured ? "default" : "outline"}>
+                    <Link href={p.to} data-testid={`btn-pricing-${p.name.toLowerCase().replace(/\s+/g, "-")}`}>{p.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <ShieldCheck size={14} className="text-emerald-400" />
+          Auto-refund if a master fails · Lyrics transcribe included on every paid plan
+        </div>
+      </section>
+
+      {/* SERVICES — what you actually get */}
+      <section className="container mx-auto px-4 py-12 max-w-6xl">
+        <motion.div
+          className="text-center mb-10"
+          initial={initial}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={staggerSlow}
+        >
+          <motion.span variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent border border-accent/20 font-mono mb-3">
+            Everything you get
+          </motion.span>
+          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">
+            A complete mastering studio. In your browser.
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+            Eight pro-grade services bundled into every plan. From AI prompt-mixing to lyrics transcription —
+            no extra purchases, no add-ons.
+          </motion.p>
+        </motion.div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="services-grid">
+          {SERVICES.map((s, i) => (
+            <motion.div
+              key={s.title}
+              initial={initial}
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.45, delay: (i % 4) * 0.07 } },
+              }}
+            >
+              <div
+                className="glow-tile h-full rounded-xl bg-card/60 backdrop-blur-sm p-5 flex flex-col gap-3"
+                data-testid={`service-${s.title.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="h-10 w-10 rounded-md bg-primary/15 text-primary flex items-center justify-center ring-1 ring-primary/30 shadow-[0_0_18px_hsl(270_85%_68%/0.40)]">
+                    <s.icon size={18} />
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20">
+                    {s.badge}
+                  </span>
+                </div>
+                <h3 className="font-bold text-base relative z-10">{s.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed relative z-10">{s.body}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Equipment showcase — expanded to 10 visuals */}
+      <section className="container mx-auto px-4 pb-4 max-w-6xl">
+        <div className="text-center mb-6">
+          <p className="text-[10px] uppercase tracking-[0.25em] font-mono text-muted-foreground">
+            Studio-grade signal chain
+          </p>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {EQUIPMENT.map(({ Icon, label }, idx) => (
+            <div
+              key={label}
+              className="group flex flex-col items-center gap-2 rounded-lg border border-border/30 bg-card/30 p-4 backdrop-blur-sm hover:border-primary/40 hover:bg-card/60 hover:shadow-[0_0_20px_hsl(270_85%_68%/0.20)] transition-all"
+              data-testid={`gear-${idx}`}
+            >
+              <Icon
+                size={26}
+                className="text-primary/80 group-hover:text-primary transition-colors animate-float"
+                style={{ animationDelay: `${idx * 0.4}s`, animationDuration: `${5 + idx * 0.3}s` } as React.CSSProperties}
+              />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono text-center">
+                {label}
+              </span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -484,27 +606,11 @@ export function LandingPage() {
           </motion.h2>
         </motion.div>
         <div className="grid md:grid-cols-3 gap-6 relative">
-          {/* Connecting dotted line on desktop */}
           <div className="hidden md:block absolute top-12 left-[16%] right-[16%] border-t-2 border-dashed border-primary/20" aria-hidden />
           {[
-            {
-              icon: Upload,
-              num: "01",
-              title: "Drop your mix",
-              body: "Upload MP3, WAV, or FLAC up to 200 MB. Drag-and-drop or click to browse.",
-            },
-            {
-              icon: Wand2,
-              num: "02",
-              title: "Pick or ask the AI",
-              body: "Choose a preset, or describe your track and let the AI assistant pick the right settings for you.",
-            },
-            {
-              icon: Download,
-              num: "03",
-              title: "Preview & download",
-              body: "A/B compare, then download a Spotify-ready WAV. Hear it before you pay.",
-            },
+            { icon: Upload, num: "01", title: "Drop your mix", body: "Upload MP3, WAV, or FLAC up to 200 MB. Drag-and-drop or click to browse." },
+            { icon: MessageSquare, num: "02", title: "Chat with the AI engineer", body: "Describe what you want, get reference songs, fine-tune in real time. Or skip the chat and pick a preset." },
+            { icon: Download, num: "03", title: "Preview, transcribe & download", body: "A/B compare, pull lyrics, then download a Spotify-ready WAV. Hear it before you pay." },
           ].map((s, i) => (
             <motion.div
               key={s.num}
@@ -540,86 +646,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Equipment showcase strip */}
-      <section className="container mx-auto px-4 pb-4 max-w-5xl">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-          {[
-            { Icon: Headphones, label: "Reference monitors" },
-            { Icon: Sliders, label: "EQ & dynamics" },
-            { Icon: Mic2, label: "Vocal clarity" },
-            { Icon: Disc3, label: "Stereo imaging" },
-            { Icon: Speaker, label: "Loudness LUFS" },
-            { Icon: Radio, label: "Broadcast ready" },
-          ].map(({ Icon, label }, idx) => (
-            <div
-              key={label}
-              className="group flex flex-col items-center gap-2 rounded-lg border border-border/30 bg-card/30 p-4 backdrop-blur-sm hover:border-primary/40 hover:bg-card/60 transition-colors"
-              data-testid={`gear-${idx}`}
-            >
-              <Icon
-                size={26}
-                className="text-primary/80 group-hover:text-primary transition-colors animate-float"
-                style={{ animationDelay: `${idx * 0.4}s`, animationDuration: `${5 + idx * 0.3}s` } as React.CSSProperties}
-              />
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono text-center">
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="container mx-auto px-4 py-16 max-w-5xl">
-        <motion.div
-          className="text-center mb-10"
-          initial={initial}
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={staggerSlow}
-        >
-          <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold tracking-tight">Why producers choose Puremix.ai</motion.h2>
-          <motion.p variants={fadeUp} className="text-muted-foreground mt-2">Professional-grade mastering, built around how African music sounds.</motion.p>
-        </motion.div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              icon: Zap,
-              title: "Lightning fast",
-              body: "Most tracks complete in under 30 seconds. Iterate freely instead of waiting hours for a mastering engineer to respond.",
-            },
-            {
-              icon: Waves,
-              title: "Platform presets",
-              body: "Streaming (-14 LUFS), Club, Warm Vinyl, Broadcast — calibrated for the way listeners actually hear it on Spotify, Apple Music, and club systems.",
-            },
-            {
-              icon: AudioLines,
-              title: "A/B side-by-side",
-              body: "Compare original vs. mastered with synced waveforms. Trust your ears, not your hopes. Hear every difference the AI made.",
-            },
-          ].map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={initial}
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
-            >
-              <Card className="bg-card/40 border-border/40 backdrop-blur-sm hover:border-primary/40 hover:shadow-[0_0_24px_hsl(270_85%_68%/0.18)] transition-all h-full">
-                <CardContent className="p-6 flex flex-col gap-3">
-                  <div className="h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                    <f.icon size={20} />
-                  </div>
-                  <h3 className="font-bold text-lg">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.body}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
       {/* Comparison table */}
       <section className="container mx-auto px-4 py-12 max-w-5xl">
         <motion.div
@@ -645,77 +671,25 @@ export function LandingPage() {
           className="rounded-xl border border-border/40 bg-card/40 backdrop-blur-sm overflow-hidden"
         >
           <div className="grid grid-cols-4 text-sm">
-            {/* Header row */}
-            <div className="p-4 md:p-5 border-b border-border/40 text-xs uppercase tracking-wider text-muted-foreground font-mono">
-              vs.
-            </div>
-            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Studio engineer</div>
-            </div>
-            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Generic AI tool</div>
-            </div>
-            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center bg-primary/10">
-              <div className="text-xs uppercase tracking-wider text-primary font-mono font-bold">Puremix.ai</div>
-            </div>
+            <div className="p-4 md:p-5 border-b border-border/40 text-xs uppercase tracking-wider text-muted-foreground font-mono">vs.</div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center"><div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Studio engineer</div></div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center"><div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">Generic AI tool</div></div>
+            <div className="p-4 md:p-5 border-b border-l border-border/40 text-center bg-primary/10"><div className="text-xs uppercase tracking-wider text-primary font-mono font-bold">Puremix.ai</div></div>
 
             {[
-              {
-                label: "Cost per track",
-                studio: "$50–200",
-                generic: "$5–15",
-                puremix: "$2",
-                puremixGood: true,
-              },
-              {
-                label: "Turnaround",
-                studio: "2–7 days",
-                generic: "1–2 minutes",
-                puremix: "30 seconds",
-                puremixGood: true,
-              },
-              {
-                label: "Tuned for Afrobeats / trap",
-                studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                generic: <XCircle size={18} className="text-destructive mx-auto" />,
-                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                puremixGood: true,
-              },
-              {
-                label: "Hands-on Total Control",
-                studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                generic: <XCircle size={18} className="text-destructive mx-auto" />,
-                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                puremixGood: true,
-              },
-              {
-                label: "AI assistant for setup",
-                studio: <XCircle size={18} className="text-destructive mx-auto" />,
-                generic: "Sometimes",
-                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                puremixGood: true,
-              },
-              {
-                label: "Auto-refund on failure",
-                studio: <XCircle size={18} className="text-destructive mx-auto" />,
-                generic: <XCircle size={18} className="text-destructive mx-auto" />,
-                puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />,
-                puremixGood: true,
-              },
+              { label: "Cost per track", studio: "$50–200", generic: "$5–15", puremix: "$2" },
+              { label: "Turnaround", studio: "2–7 days", generic: "1–2 minutes", puremix: "30 seconds" },
+              { label: "Tuned for Afrobeats / trap", studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />, generic: <XCircle size={18} className="text-destructive mx-auto" />, puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> },
+              { label: "Prompt-mix chat", studio: <XCircle size={18} className="text-destructive mx-auto" />, generic: <XCircle size={18} className="text-destructive mx-auto" />, puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> },
+              { label: "Reference song suggestions", studio: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" />, generic: <XCircle size={18} className="text-destructive mx-auto" />, puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> },
+              { label: "Lyrics transcribe", studio: <XCircle size={18} className="text-destructive mx-auto" />, generic: <XCircle size={18} className="text-destructive mx-auto" />, puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> },
+              { label: "Auto-refund on failure", studio: <XCircle size={18} className="text-destructive mx-auto" />, generic: <XCircle size={18} className="text-destructive mx-auto" />, puremix: <CheckCircle2 size={18} className="text-emerald-400 mx-auto" /> },
             ].map((row, i) => (
               <div key={i} className="contents">
-                <div className="p-4 md:p-5 border-b border-border/30 last:border-0 text-sm font-medium">
-                  {row.label}
-                </div>
-                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">
-                  {row.studio}
-                </div>
-                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">
-                  {row.generic}
-                </div>
-                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm font-semibold bg-primary/[0.06]">
-                  {row.puremix}
-                </div>
+                <div className="p-4 md:p-5 border-b border-border/30 last:border-0 text-sm font-medium">{row.label}</div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">{row.studio}</div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm text-muted-foreground">{row.generic}</div>
+                <div className="p-4 md:p-5 border-b border-l border-border/30 last:border-b-0 text-center text-sm font-semibold bg-primary/[0.06]">{row.puremix}</div>
               </div>
             ))}
           </div>
@@ -743,9 +717,6 @@ export function LandingPage() {
               <StarRow count={5} size={18} />
               <span className="text-sm text-muted-foreground font-mono">· verified user reviews</span>
             </motion.div>
-            <motion.p variants={fadeUp} className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              From bedroom producers to touring artists — professional sound, instant delivery, one low price.
-            </motion.p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-5">
@@ -784,53 +755,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing teaser */}
-      <section className="container mx-auto px-4 py-16 max-w-5xl">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Simple, fair pricing</h2>
-          <p className="text-muted-foreground mt-2">Transparent pricing. No subscriptions. No surprises.</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { name: "Single Master", price: "$2", desc: "One track, full WAV download", cta: "Buy now", to: "/pricing", featured: false },
-            { name: "24-Hour Pass", price: "$10", desc: "Unlimited masters for 24h", cta: "Best value", to: "/pricing", featured: true },
-            { name: "Lifetime", price: "$200", desc: "Unlimited forever, one payment", cta: "Buy lifetime", to: "/pricing", featured: false },
-          ].map((p, i) => (
-            <motion.div
-              key={p.name}
-              initial={initial}
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: i * 0.1 } } }}
-            >
-              <Card
-                className={`relative ${p.featured ? "border-primary/50 shadow-[0_0_30px_hsl(270_85%_68%/0.20)]" : "border-border/40"} bg-card/60 backdrop-blur-sm hover:translate-y-[-2px] transition-transform h-full`}
-              >
-                {p.featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground tracking-wider uppercase">
-                    Best value
-                  </div>
-                )}
-                <CardContent className="p-6 flex flex-col gap-4 text-center">
-                  <h3 className="font-bold text-xl">{p.name}</h3>
-                  <div className="text-4xl font-bold font-mono">{p.price}</div>
-                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                    <CheckCircle2 size={14} className="text-primary" /> {p.desc}
-                  </p>
-                  <Button asChild className="w-full mt-auto" variant={p.featured ? "default" : "outline"}>
-                    <Link href={p.to}>{p.cta}</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck size={14} className="text-emerald-400" />
-          Auto-refund if a master fails. 14-day refund window on Lifetime.
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="container mx-auto px-4 py-16 max-w-3xl">
         <motion.div
@@ -856,10 +780,7 @@ export function LandingPage() {
 
         <div className="text-center mt-8 text-sm text-muted-foreground">
           Have a different question?{" "}
-          <a
-            href="mailto:support@puremix.ai"
-            className="text-primary hover:underline font-medium"
-          >
+          <a href="mailto:support@puremix.ai" className="text-primary hover:underline font-medium">
             Email support
           </a>
           .
@@ -891,7 +812,7 @@ export function LandingPage() {
           </motion.div>
           <motion.p variants={fadeUp} className="text-xs text-muted-foreground mt-4 relative flex items-center justify-center gap-2">
             <ShieldCheck size={13} className="text-emerald-400" />
-            Auto-refund if it fails · Preview before download · WAV included
+            Auto-refund if it fails · Preview before download · Lyrics + WAV included
           </motion.p>
         </motion.div>
       </section>

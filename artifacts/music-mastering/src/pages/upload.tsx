@@ -20,8 +20,8 @@ import {
   buildCustomParamsPayload,
   type TotalControlValue,
 } from "@/components/TotalControlPanel";
-import { AiSuggestPanel } from "@/components/AiSuggestPanel";
-import type { SuggestResponse } from "@/lib/api";
+import { PromptChatPanel } from "@/components/PromptChatPanel";
+import type { ChatPatch } from "@/lib/api";
 type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
 
 export function UploadPage() {
@@ -449,14 +449,17 @@ export function UploadPage() {
               </div>
 
               <div className="mt-5">
-                <AiSuggestPanel
+                <PromptChatPanel
                   currentPreset={preset}
-                  onApply={(s: SuggestResponse) => {
-                    setPreset(s.preset as CreateMasteringJobBodyPreset);
-                    if (s.generateVariations) setGenerateVariations(true);
-                    const numericParams: Record<string, number> = {};
+                  onPatch={(patch: ChatPatch) => {
+                    if (patch.preset) {
+                      setPreset(patch.preset as CreateMasteringJobBodyPreset);
+                    }
+                    if (patch.generateVariations === true) setGenerateVariations(true);
+                    if (patch.generateVariations === false) setGenerateVariations(false);
+                    const numericParams: Record<string, number> = { ...totalControl.params };
                     let voiceCleanup = totalControl.voice_cleanup;
-                    for (const [k, v] of Object.entries(s.customParams)) {
+                    for (const [k, v] of Object.entries(patch.customParams)) {
                       if (k === "voice_cleanup" && typeof v === "boolean") {
                         voiceCleanup = v;
                       } else if (typeof v === "number") {
@@ -464,7 +467,8 @@ export function UploadPage() {
                       }
                     }
                     setTotalControl({
-                      enabled: Object.keys(numericParams).length > 0,
+                      enabled:
+                        totalControl.enabled || Object.keys(patch.customParams).length > 0,
                       voice_cleanup: voiceCleanup,
                       params: numericParams,
                     });

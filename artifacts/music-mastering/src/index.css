@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer theme, base, clerk, components, utilities;
 
@@ -121,6 +121,7 @@
   --sidebar-ring: 270 85% 55%;
 
   --app-font-sans: 'Inter', sans-serif;
+  --app-font-display: 'Space Grotesk', 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', monospace;
   --radius: 0.75rem;
@@ -209,6 +210,13 @@
     /* Force dark mode for the app */
     color-scheme: dark;
   }
+
+  /* Display headings use Space Grotesk for a sharper, more modern feel.
+     Body copy stays on Inter for legibility. */
+  h1, h2, h3 {
+    font-family: var(--app-font-display);
+    letter-spacing: -0.015em;
+  }
 }
 
 @layer utilities {
@@ -246,6 +254,29 @@
     50% { opacity: 0.75; transform: scale(1.08); }
   }
   .animate-glow-pulse { animation: glow-pulse 4s ease-in-out infinite; }
+
+  /* Glowing stat tile: persistent radial halo behind the card with a soft
+     breathing animation. Used by hero stat tiles + services tiles. */
+  @keyframes tile-breathe {
+    0%, 100% { box-shadow: 0 0 24px -4px hsl(270 85% 68% / 0.30), inset 0 0 0 1px hsl(270 85% 68% / 0.20); }
+    50%      { box-shadow: 0 0 36px -2px hsl(270 85% 68% / 0.55), inset 0 0 0 1px hsl(270 85% 68% / 0.45); }
+  }
+  .glow-tile {
+    position: relative;
+    animation: tile-breathe 5s ease-in-out infinite;
+  }
+  .glow-tile::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(135deg, hsl(270 85% 68% / 0.0), hsl(300 70% 65% / 0.18), hsl(270 85% 68% / 0.0));
+    opacity: 0.6;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glow-tile { animation: none; }
+  }
 
   @keyframes ring-ping {
     0% { transform: scale(0.85); opacity: 0.7; }

@@ -170,3 +170,54 @@ export function selectMasteringVariant(
     body: JSON.stringify({ variantId }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Prompt-mixing chat (multi-turn) + reference song suggestions
+// ---------------------------------------------------------------------------
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ReferenceSong {
+  title: string;
+  artist: string;
+  why: string;
+}
+
+export interface ChatPatch {
+  preset: SuggestPreset | null;
+  customParams: Record<string, number | boolean>;
+  generateVariations: boolean | null;
+}
+
+export interface ChatResponse {
+  reply: string;
+  patch: ChatPatch;
+  referenceSongs: ReferenceSong[];
+  done: boolean;
+}
+
+export function postChat(messages: ChatMessage[]): Promise<ChatResponse> {
+  return customFetch<ChatResponse>("/api/mastering/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Lyrics transcription (Whisper, included with any paid master)
+// ---------------------------------------------------------------------------
+
+export interface LyricsResponse {
+  text: string;
+  language: string | null;
+}
+
+export function postLyrics(jobId: number): Promise<LyricsResponse> {
+  return customFetch<LyricsResponse>(`/api/mastering/jobs/${jobId}/lyrics`, {
+    method: "POST",
+  });
+}

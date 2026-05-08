@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WaveformPlayer } from "@/components/WaveformPlayer";
 import { Frame } from "@/components/Frame";
 import { ProcessingWaveform } from "@/components/ProcessingWaveform";
+import { LyricsPanel } from "@/components/LyricsPanel";
 import { buttonTap, buttonHover } from "@/lib/motion";
 
 const PROCESSING_STAGES = [
@@ -560,6 +561,10 @@ export function JobPage() {
               <Mail size={16} className="text-emerald-400" />
               <span>We've also emailed a download link to your account email.</span>
             </Frame>
+          )}
+
+          {job.status === "completed" && (
+            <LyricsPanel jobId={job.id} baseFilename={`puremix-lyrics-${job.id}`} />
           )}
 
           {/* Coming Soon: heavy ML features deferred to a separate session */}

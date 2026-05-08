@@ -51,6 +51,33 @@ export const aiSuggestLimiter = rateLimit({
   },
 });
 
+/** AI chat limiter — same family as suggest, slightly more generous since
+ * prompt-mixing is a multi-turn conversation. */
+export const aiChatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: authOrIpKey,
+  message: {
+    error: "Too many chat messages. Wait a minute before continuing.",
+    code: "RATE_LIMITED",
+  },
+});
+
+/** Lyrics transcription — Whisper is paid, cap aggressively. */
+export const lyricsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 6,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: authOrIpKey,
+  message: {
+    error: "Too many transcription requests. Wait a minute before retrying.",
+    code: "RATE_LIMITED",
+  },
+});
+
 /** Anti-abuse limiter for unauthenticated webhook-like endpoints. */
 export const publicLimiter = rateLimit({
   windowMs: 60 * 1000,
