@@ -16,7 +16,11 @@ function getClient(): OpenAI | null {
   const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
   const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   if (!baseURL || !apiKey) return null;
-  return new OpenAI({ baseURL, apiKey });
+  // The Replit AI proxy expects paths WITHOUT a /v1 prefix (e.g. /audio/transcriptions).
+  // The OpenAI SDK automatically appends /v1 to the baseURL, so we must NOT include
+  // it in the base URL — the proxy root IS the versioned base.
+  const normalizedBase = baseURL.replace(/\/v1\/?$/, "");
+  return new OpenAI({ baseURL: normalizedBase, apiKey });
 }
 
 /**
