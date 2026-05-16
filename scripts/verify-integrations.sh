@@ -2,7 +2,8 @@
 # Puremix.ai — Integration Verification Script
 # Run this after all secrets are set to confirm every service is wired up.
 # Usage: bash scripts/verify-integrations.sh
-set -euo pipefail
+# All failures are collected and reported at the end — the script never exits early.
+set -uo pipefail
 
 PASS=0
 FAIL=0
@@ -91,37 +92,51 @@ echo ""
 
 # ── 6. Anthropic AI ─────────────────────────────────────────────────────────
 echo "-- Anthropic AI (via Replit proxy) --"
-CLAUDE=$(curl -s --max-time 15 -X POST "$AI_INTEGRATIONS_ANTHROPIC_BASE_URL/v1/messages" \
-  -H "Authorization: Bearer $AI_INTEGRATIONS_ANTHROPIC_API_KEY" \
-  -H "Content-Type: application/json" \
-  -H "anthropic-version: 2023-06-01" \
-  -d '{"model":"claude-haiku-4-5","max_tokens":10,"messages":[{"role":"user","content":"Reply: OK"}]}' 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['content'][0]['text'][:10])" 2>/dev/null || echo "")
-if [ -n "$CLAUDE" ]; then
-  ok "Anthropic claude-haiku-4-5 reachable: $CLAUDE"
+ANTHROPIC_BASE="${AI_INTEGRATIONS_ANTHROPIC_BASE_URL:-}"
+ANTHROPIC_KEY="${AI_INTEGRATIONS_ANTHROPIC_API_KEY:-}"
+CLAUDE_MODEL="${ANTHROPIC_MODEL:-claude-haiku-4-5}"
+if [ -z "$ANTHROPIC_BASE" ] || [ -z "$ANTHROPIC_KEY" ]; then
+  fail "Anthropic env vars not set (AI_INTEGRATIONS_ANTHROPIC_BASE_URL / API_KEY)"
 else
-  fail "Anthropic AI integration failed"
+  CLAUDE=$(curl -s --max-time 15 -X POST "$ANTHROPIC_BASE/v1/messages" \
+    -H "Authorization: Bearer $ANTHROPIC_KEY" \
+    -H "Content-Type: application/json" \
+    -H "anthropic-version: 2023-06-01" \
+    -d "{\"model\":\"$CLAUDE_MODEL\",\"max_tokens\":10,\"messages\":[{\"role\":\"user\",\"content\":\"Reply: OK\"}]}" 2>/dev/null \
+    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['content'][0]['text'][:10])" 2>/dev/null || echo "")
+  if [ -n "$CLAUDE" ]; then
+    ok "Anthropic $CLAUDE_MODEL reachable: $CLAUDE"
+  else
+    fail "Anthropic AI integration failed (model=$CLAUDE_MODEL)"
+  fi
 fi
 
 echo ""
 
 # ── 7. OpenAI Whisper ───────────────────────────────────────────────────────
 echo "-- OpenAI Whisper (via Replit proxy) --"
-python3 -c "
+OPENAI_BASE="${AI_INTEGRATIONS_OPENAI_BASE_URL:-}"
+OPENAI_KEY="${AI_INTEGRATIONS_OPENAI_API_KEY:-}"
+WHISPER_MODEL="${OPENAI_WHISPER_MODEL:-gpt-4o-mini-transcribe}"
+if [ -z "$OPENAI_BASE" ] || [ -z "$OPENAI_KEY" ]; then
+  fail "OpenAI env vars not set (AI_INTEGRATIONS_OPENAI_BASE_URL / API_KEY)"
+else
+  python3 -c "
 import numpy as np, soundfile as sf
 sr=44100; t=np.linspace(0,1,sr); d=(0.1*np.sin(2*np.pi*440*t)); d=np.stack([d,d],axis=1).astype('float32')
 sf.write('/tmp/_whisper_test.wav', d, sr)
-"
-WHISPER=$(curl -s --max-time 20 -X POST "$AI_INTEGRATIONS_OPENAI_BASE_URL/audio/transcriptions" \
-  -H "Authorization: Bearer $AI_INTEGRATIONS_OPENAI_API_KEY" \
-  -F "file=@/tmp/_whisper_test.wav" \
-  -F "model=gpt-4o-mini-transcribe" \
-  -F "response_format=json" 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if 'text' in d else 'fail')" 2>/dev/null || echo "fail")
-if [ "$WHISPER" = "ok" ]; then
-  ok "OpenAI Whisper (gpt-4o-mini-transcribe) reachable"
-else
-  fail "OpenAI Whisper integration failed"
+" 2>/dev/null || true
+  WHISPER=$(curl -s --max-time 20 -X POST "$OPENAI_BASE/audio/transcriptions" \
+    -H "Authorization: Bearer $OPENAI_KEY" \
+    -F "file=@/tmp/_whisper_test.wav" \
+    -F "model=$WHISPER_MODEL" \
+    -F "response_format=json" 2>/dev/null \
+    | python3 -c "import json,sys; d=json.load(sys.stdin); print('ok' if 'text' in d else 'fail')" 2>/dev/null || echo "fail")
+  if [ "$WHISPER" = "ok" ]; then
+    ok "OpenAI Whisper ($WHISPER_MODEL) reachable"
+  else
+    fail "OpenAI Whisper integration failed (model=$WHISPER_MODEL)"
+  fi
 fi
 
 echo ""

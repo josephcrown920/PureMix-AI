@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "build": "pip install -r requirements.txt --quiet && node ./build.mjs",
+    "build": "python3 -c 'import pedalboard,pyloudnorm,soundfile,pydub' 2>/dev/null || pip install -r requirements.txt --quiet; node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
