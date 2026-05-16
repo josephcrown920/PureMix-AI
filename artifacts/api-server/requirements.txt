@@ -1,0 +1,4 @@
+pedalboard==0.9.22
+pyloudnorm==0.2.0
+soundfile==0.13.1
+pydub==0.25.1
