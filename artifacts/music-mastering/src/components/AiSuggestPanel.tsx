@@ -3,7 +3,7 @@ import { Sparkles, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { fetchSuggestion, type SuggestPreset, type SuggestResponse } from "@/lib/api";
+import { fetchSuggestion, type SuggestPreset, type SuggestResponse, type AiProvider } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ApiError } from "@workspace/api-client-react";
 import { PRESET_LABELS } from "@/lib/format";
@@ -11,6 +11,7 @@ import { PRESET_LABELS } from "@/lib/format";
 interface Props {
   onApply: (s: SuggestResponse) => void;
   currentPreset: SuggestPreset;
+  jobId?: number;
 }
 
 const EXAMPLES = [
@@ -20,11 +21,17 @@ const EXAMPLES = [
   "Amapiano, smooth low end, wide stereo",
 ];
 
-export function AiSuggestPanel({ onApply, currentPreset }: Props) {
+const PROVIDER_LABELS: Record<AiProvider, string> = {
+  claude: "Claude Sonnet",
+  openai: "GPT-4o",
+};
+
+export function AiSuggestPanel({ onApply, currentPreset, jobId }: Props) {
   const { toast } = useToast();
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SuggestResponse | null>(null);
+  const [provider, setProvider] = useState<AiProvider>("claude");
 
   const handleAsk = async () => {
     if (description.trim().length < 4) {
@@ -37,7 +44,7 @@ export function AiSuggestPanel({ onApply, currentPreset }: Props) {
     }
     setLoading(true);
     try {
-      const r = await fetchSuggestion(description.trim());
+      const r = await fetchSuggestion(description.trim(), provider, jobId);
       setResult(r);
     } catch (err) {
       const msg =
@@ -75,6 +82,26 @@ export function AiSuggestPanel({ onApply, currentPreset }: Props) {
           beta
         </Badge>
       </div>
+
+      {/* AI model toggle */}
+      <div className="flex items-center gap-1 rounded-md border border-border/40 bg-background/40 p-1 w-fit">
+        {(["claude", "openai"] as AiProvider[]).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setProvider(p)}
+            className={`text-[11px] font-mono px-2.5 py-1 rounded transition-all ${
+              provider === p
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid={`btn-suggest-provider-${p}`}
+          >
+            {PROVIDER_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
       <p className="text-xs text-muted-foreground -mt-1">
         Describe your track in plain English and we&rsquo;ll pick the right preset and tweaks.
       </p>
@@ -115,7 +142,7 @@ export function AiSuggestPanel({ onApply, currentPreset }: Props) {
       >
         {loading ? (
           <>
-            <Loader2 size={14} className="mr-2 animate-spin" /> Thinking...
+            <Loader2 size={14} className="mr-2 animate-spin" /> {PROVIDER_LABELS[provider]} thinking...
           </>
         ) : (
           <>
@@ -129,13 +156,20 @@ export function AiSuggestPanel({ onApply, currentPreset }: Props) {
           className="mt-3 rounded-md border border-primary/30 bg-background/50 p-3 space-y-2"
           data-testid="ai-suggest-result"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
               Recommendation
             </div>
-            <Badge variant="outline" className="text-[10px] border-primary/40 text-primary font-mono">
-              {PRESET_LABELS[result.preset] ?? result.preset}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {result.provider && (
+                <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-wider">
+                  via {PROVIDER_LABELS[result.provider]}
+                </span>
+              )}
+              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary font-mono">
+                {PRESET_LABELS[result.preset] ?? result.preset}
+              </Badge>
+            </div>
           </div>
           <p className="text-sm leading-relaxed" data-testid="text-ai-rationale">
             {result.rationale}

@@ -5,6 +5,7 @@ import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 export type PlanLabel = "trial" | "payg" | "day" | "lifetime";
 export type PlanId = "single" | "day" | "lifetime";
+export type AiProvider = "claude" | "openai";
 
 export interface Entitlement {
   allowed: boolean;
@@ -86,8 +87,6 @@ export function usePlans() {
 
 // ---------------------------------------------------------------------------
 // Phase 2 mastering extensions (Total Control + AI Variations)
-// These fields aren't yet in the OpenAPI spec, so we model them locally and
-// cast the generated MasteringJob at the boundary.
 // ---------------------------------------------------------------------------
 
 export interface MasteringVariant {
@@ -110,11 +109,6 @@ export interface CreateMasteringJobOptions {
   generateVariations?: boolean;
 }
 
-/**
- * Create a mastering job with the new Total Control + Variations fields.
- * Bypasses the auto-generated client (which only knows audio + preset +
- * targetLufs) so we can ship without regenerating the OpenAPI spec.
- */
 export async function createMasteringJob(
   audio: File,
   opts: CreateMasteringJobOptions,
@@ -149,13 +143,18 @@ export interface SuggestResponse {
   customParams: Record<string, number | boolean>;
   rationale: string;
   generateVariations: boolean;
+  provider?: AiProvider;
 }
 
-export function fetchSuggestion(description: string): Promise<SuggestResponse> {
+export function fetchSuggestion(
+  description: string,
+  provider: AiProvider = "claude",
+  jobId?: number,
+): Promise<SuggestResponse> {
   return customFetch<SuggestResponse>("/api/mastering/suggest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ description }),
+    body: JSON.stringify({ description, provider, ...(jobId != null ? { jobId } : {}) }),
   });
 }
 
@@ -197,18 +196,23 @@ export interface ChatResponse {
   patch: ChatPatch;
   referenceSongs: ReferenceSong[];
   done: boolean;
+  provider?: AiProvider;
 }
 
-export function postChat(messages: ChatMessage[]): Promise<ChatResponse> {
+export function postChat(
+  messages: ChatMessage[],
+  provider: AiProvider = "claude",
+  jobId?: number,
+): Promise<ChatResponse> {
   return customFetch<ChatResponse>("/api/mastering/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, provider, ...(jobId != null ? { jobId } : {}) }),
   });
 }
 
 // ---------------------------------------------------------------------------
-// Lyrics transcription (Whisper, included with any paid master)
+// Lyrics transcription
 // ---------------------------------------------------------------------------
 
 export interface LyricsResponse {

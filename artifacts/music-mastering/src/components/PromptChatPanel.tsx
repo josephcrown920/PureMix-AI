@@ -8,6 +8,7 @@ import {
   type ChatMessage,
   type ChatPatch,
   type ReferenceSong,
+  type AiProvider,
 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ApiError } from "@workspace/api-client-react";
@@ -16,6 +17,7 @@ import { PRESET_LABELS } from "@/lib/format";
 interface Props {
   currentPreset: SuggestPreset;
   onPatch: (patch: ChatPatch) => void;
+  jobId?: number;
 }
 
 interface Turn {
@@ -23,6 +25,7 @@ interface Turn {
   content: string;
   refs?: ReferenceSong[];
   patchSummary?: string;
+  provider?: AiProvider;
 }
 
 const STARTERS = [
@@ -41,11 +44,17 @@ function summarizePatch(patch: ChatPatch): string | undefined {
   return bits.length > 0 ? bits.join(" · ") : undefined;
 }
 
-export function PromptChatPanel({ currentPreset, onPatch }: Props) {
+const PROVIDER_LABELS: Record<AiProvider, string> = {
+  claude: "Claude Sonnet",
+  openai: "GPT-4o",
+};
+
+export function PromptChatPanel({ currentPreset, onPatch, jobId }: Props) {
   const { toast } = useToast();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [provider, setProvider] = useState<AiProvider>("claude");
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,7 +79,7 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
     }));
 
     try {
-      const r = await postChat(messages);
+      const r = await postChat(messages, provider, jobId);
       const summary = summarizePatch(r.patch);
       setTurns((prev) => [
         ...prev,
@@ -79,9 +88,9 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
           content: r.reply,
           refs: r.referenceSongs,
           patchSummary: summary,
+          provider: r.provider ?? provider,
         },
       ]);
-      // Auto-apply patch when there's anything to apply.
       if (summary) {
         onPatch(r.patch);
         toast({
@@ -96,7 +105,7 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
           : err instanceof Error
             ? err.message
             : "Chat failed.";
-      setTurns((prev) => prev.slice(0, -1)); // rollback the user message
+      setTurns((prev) => prev.slice(0, -1));
       toast({ title: "Couldn't reach the AI", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -113,7 +122,7 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
       className="rounded-md border border-primary/30 bg-primary/5 p-4 space-y-3"
       data-testid="ai-chat-panel"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Wand2 size={16} className="text-primary" />
         <h3 className="text-sm font-semibold">Prompt-mix with the AI engineer</h3>
         <Badge
@@ -133,9 +142,29 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
           </button>
         )}
       </div>
+
+      {/* AI model toggle */}
+      <div className="flex items-center gap-1 rounded-md border border-border/40 bg-background/40 p-1 w-fit">
+        {(["claude", "openai"] as AiProvider[]).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setProvider(p)}
+            className={`text-[11px] font-mono px-2.5 py-1 rounded transition-all ${
+              provider === p
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid={`btn-provider-${p}`}
+          >
+            {PROVIDER_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
       <p className="text-xs text-muted-foreground -mt-1">
-        Tell the AI how you want it to sound. Keep going back and forth — settings update live, and
-        it&rsquo;ll suggest reference songs that match your vibe.
+        Tell the AI how you want it to sound. Settings update live, and it&rsquo;ll suggest
+        reference songs that match your vibe.
       </p>
 
       {turns.length === 0 ? (
@@ -173,6 +202,11 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
                 data-testid={`chat-msg-${t.role}-${i}`}
               >
                 <div className="leading-relaxed whitespace-pre-wrap">{t.content}</div>
+                {t.role === "assistant" && t.provider && (
+                  <div className="text-[9px] uppercase tracking-wider font-mono text-muted-foreground/60">
+                    via {PROVIDER_LABELS[t.provider]}
+                  </div>
+                )}
                 {t.patchSummary && (
                   <div className="text-[10px] uppercase tracking-wider font-mono text-primary inline-flex items-center gap-1">
                     <Sparkles size={10} /> applied: {t.patchSummary}
@@ -212,7 +246,7 @@ export function PromptChatPanel({ currentPreset, onPatch }: Props) {
           {loading && (
             <div className="flex justify-start">
               <div className="rounded-md bg-background/70 border border-border/50 px-3 py-2 text-sm inline-flex items-center gap-2 text-muted-foreground">
-                <Loader2 size={12} className="animate-spin" /> thinking...
+                <Loader2 size={12} className="animate-spin" /> {PROVIDER_LABELS[provider]} thinking...
               </div>
             </div>
           )}

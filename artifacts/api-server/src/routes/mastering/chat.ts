@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/requireAuth";
 import { aiChatLimiter } from "../../middlewares/rateLimit";
@@ -11,6 +12,7 @@ const router: IRouter = Router();
 
 const VALID_PRESETS = ["streaming", "club", "warm_vinyl", "broadcast", "custom"] as const;
 type Preset = (typeof VALID_PRESETS)[number];
+type Provider = "claude" | "openai";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -34,6 +36,7 @@ interface ChatResponse {
   patch: ChatPatch;
   referenceSongs: ReferenceSong[];
   done: boolean;
+  provider: Provider;
 }
 
 interface AudioAnalysis {
@@ -52,78 +55,71 @@ interface AudioAnalysis {
 }
 
 function buildSystemPrompt(analysis: AudioAnalysis | null): string {
-  const basePrompt = `You are Puremix, an AI mastering co-engineer for Afrobeats, amapiano, hip-hop, drill and trap producers.
+  const base = `You are Puremix, an AI mastering co-engineer for Afrobeats, amapiano, hip-hop, drill and trap producers.
 You are in a back-and-forth chat with the producer. Each turn you do TWO things:
 
 1. Talk like a friendly engineer — ask one focused question OR confirm the next move. Keep it 1-3 short sentences.
 2. Update the mastering settings if the producer's intent is clear. Otherwise leave them null/empty.
 
 Available presets:
-- "streaming"   target -14 LUFS, balanced for Spotify/Apple Music. Default safe choice.
+- "streaming"   target -14 LUFS, balanced for Spotify/Apple Music.
 - "club"        target  -7 LUFS, very loud, heavy limiting, peak energy for DJs.
 - "warm_vinyl"  target -12 LUFS, analog warmth, preserved transients, richer low end.
 - "broadcast"   target -23 LUFS, EBU R128 strict, for TV/radio.
 - "custom"      use only when fine-grained customParams are essential.
 
 You may include sparse customParams to fine-tune. Keys & ranges:
-${Object.entries(PARAM_SPECS)
-  .map(([k, s]) => `  ${k} (${s.type}, ${s.min}..${s.max})`)
-  .join("\n")}
+${Object.entries(PARAM_SPECS).map(([k, s]) => `  ${k} (${s.type}, ${s.min}..${s.max})`).join("\n")}
 
 Reference songs:
 On the FIRST turn (or any turn where the producer describes a vibe), recommend 2-3 commercially released songs that
-sound similar to what they're going for, so they have a sonic reference. Format each as title, artist,
-and a one-line "why" (e.g. "Same wide stereo + warm low end"). If the producer hasn't given enough info, return [].
+sound similar, so they have a sonic reference. Format each as title, artist, and a one-line "why".
+If the producer hasn't given enough info, return [].
 
-Set "done": true ONLY when the producer is happy with the settings and ready to render
-("yes go", "let's master it", "looks good", "do it", "send it" etc.).
+Set "done": true ONLY when the producer is happy and ready to render ("yes go", "send it", "looks good", etc.).
 
 Output STRICT JSON. No prose. No markdown fences. Schema:
 {
   "reply": "<short engineer-style reply>",
   "patch": {
-    "preset": "<one of the presets, or null if not changing>",
-    "customParams": { /* sparse, only the params you're changing */ },
+    "preset": "<preset or null>",
+    "customParams": {},
     "generateVariations": <true | false | null>
   },
-  "referenceSongs": [
-    { "title": "<song>", "artist": "<artist>", "why": "<one line>" }
-  ],
+  "referenceSongs": [{ "title": "", "artist": "", "why": "" }],
   "done": <true | false>
 }`;
 
-  if (!analysis) return basePrompt;
+  if (!analysis) return base;
 
   const lufsGap = -14 - analysis.integrated_lufs;
   const bassProfile = analysis.low_energy_ratio > 0.42
     ? "heavy bass — careful with low-shelf boosts"
     : analysis.low_energy_ratio < 0.20
-    ? "thin low-end — could benefit from warmth"
+    ? "thin low-end — could use warmth"
     : "balanced low-end";
-
-  const dynamicsProfile = analysis.loudness_range > 12
-    ? "very dynamic — wants compression"
+  const dynProfile = analysis.loudness_range > 12
+    ? "very dynamic — needs compression"
     : analysis.loudness_range < 3
     ? "already brick-walled — be very gentle"
     : "healthy dynamics";
-
   const widthProfile = analysis.stereo_width < 0.15
     ? "near-mono"
     : analysis.stereo_width > 0.75
     ? "extremely wide (phase risk)"
     : "good stereo image";
 
-  return `${basePrompt}
+  return `${base}
 
-MEASURED AUDIO PROPERTIES (from the actual uploaded file — use these when making recommendations):
+MEASURED AUDIO PROPERTIES (from the actual uploaded file):
 - Integrated: ${analysis.integrated_lufs} LUFS (${lufsGap > 0 ? "+" : ""}${lufsGap.toFixed(1)} dB needed for streaming)
-- LRA (dynamic range): ${analysis.loudness_range} dB — ${dynamicsProfile}
+- LRA (dynamic range): ${analysis.loudness_range} dB — ${dynProfile}
 - Crest factor: ${analysis.crest_factor_db} dB (${analysis.crest_factor_db > 14 ? "punchy transients" : analysis.crest_factor_db < 8 ? "flat/squashed" : "moderate"})
 - Spectral centroid: ${analysis.spectral_centroid_hz.toFixed(0)} Hz (${analysis.spectral_centroid_hz < 1200 ? "dark/warm" : analysis.spectral_centroid_hz > 4000 ? "bright" : "balanced"})
 - Low energy: ${(analysis.low_energy_ratio * 100).toFixed(1)}% — ${bassProfile}
 - Stereo width: ${(analysis.stereo_width * 100).toFixed(0)}% — ${widthProfile}
 
-Refer to these numbers naturally when discussing the track with the producer — e.g. "Your track is measuring at ${analysis.integrated_lufs} LUFS, so it'll need a healthy gain boost for streaming."`;
+Refer to these numbers naturally — e.g. "Your track is at ${analysis.integrated_lufs} LUFS, so it needs a solid gain push for streaming."`;
 }
 
 function parseJsonObject(raw: string): Partial<ChatResponse> | null {
@@ -132,9 +128,7 @@ function parseJsonObject(raw: string): Partial<ChatResponse> | null {
   const haystack = fenced ? fenced[1] : raw;
   const start = haystack.indexOf("{");
   if (start === -1) return null;
-  let depth = 0;
-  let inStr = false;
-  let esc = false;
+  let depth = 0, inStr = false, esc = false;
   for (let i = start; i < haystack.length; i++) {
     const c = haystack[i];
     if (inStr) {
@@ -148,22 +142,26 @@ function parseJsonObject(raw: string): Partial<ChatResponse> | null {
     else if (c === "}") {
       depth--;
       if (depth === 0) {
-        try {
-          return JSON.parse(haystack.slice(start, i + 1)) as Partial<ChatResponse>;
-        } catch {
-          return null;
-        }
+        try { return JSON.parse(haystack.slice(start, i + 1)) as Partial<ChatResponse>; }
+        catch { return null; }
       }
     }
   }
   return null;
 }
 
-function getClient(): Anthropic | null {
+function getClaudeClient(): Anthropic | null {
   const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
   const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   if (!baseURL || !apiKey) return null;
   return new Anthropic({ baseURL, apiKey });
+}
+
+function getOpenAIClient(): OpenAI | null {
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!baseURL || !apiKey) return null;
+  return new OpenAI({ baseURL, apiKey });
 }
 
 function sanitizeRefs(input: unknown): ReferenceSong[] {
@@ -205,27 +203,18 @@ router.post(
       return;
     }
 
-    const client = getClient();
-    if (!client) {
-      res.status(503).json({
-        error: "AI chat is temporarily unavailable. Pick a preset manually below.",
-      });
-      return;
-    }
+    const provider: Provider = req.body?.provider === "openai" ? "openai" : "claude";
 
-    // Look up audio analysis if jobId is provided — gives Claude real measurements
-    // to reason about rather than guessing from the text description alone.
+    // Look up audio analysis if jobId provided
     let analysis: AudioAnalysis | null = null;
     const rawJobId = req.body?.jobId;
-    if (rawJobId && typeof rawJobId === "number") {
+    if (typeof rawJobId === "number") {
       try {
         const [job] = await db
           .select({ audioAnalysis: masteringJobsTable.audioAnalysis })
           .from(masteringJobsTable)
           .where(eq(masteringJobsTable.id, rawJobId));
-        if (job?.audioAnalysis) {
-          analysis = job.audioAnalysis as AudioAnalysis;
-        }
+        if (job?.audioAnalysis) analysis = job.audioAnalysis as AudioAnalysis;
       } catch (e) {
         logger.warn({ e, jobId: rawJobId }, "Could not fetch job analysis for chat");
       }
@@ -234,21 +223,49 @@ router.post(
     const systemPrompt = buildSystemPrompt(analysis);
 
     try {
-      const response = await client.messages.create(
-        {
-          model: "claude-sonnet-4-5",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages,
-        },
-        { timeout: 25_000 },
-      );
+      let raw = "";
 
-      const textBlock = response.content.find((b) => b.type === "text");
-      const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
+      if (provider === "openai") {
+        const client = getOpenAIClient();
+        if (!client) {
+          res.status(503).json({ error: "OpenAI is temporarily unavailable. Try Claude instead." });
+          return;
+        }
+        const response = await client.chat.completions.create(
+          {
+            model: "gpt-4o",
+            max_tokens: 1000,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...messages,
+            ],
+          },
+          { timeout: 25_000 },
+        );
+        raw = response.choices[0]?.message?.content ?? "";
+      } else {
+        const client = getClaudeClient();
+        if (!client) {
+          res.status(503).json({ error: "AI chat is temporarily unavailable." });
+          return;
+        }
+        const response = await client.messages.create(
+          {
+            model: "claude-sonnet-4-5",
+            max_tokens: 1000,
+            system: systemPrompt,
+            messages,
+          },
+          { timeout: 25_000 },
+        );
+        const textBlock = response.content.find((b) => b.type === "text");
+        raw = textBlock?.type === "text" ? textBlock.text : "";
+      }
+
       const parsed = parseJsonObject(raw);
       if (!parsed) {
-        logger.error({ raw }, "AI chat: no JSON in response");
+        logger.error({ raw, provider }, "AI chat: no JSON in response");
         res.status(502).json({ error: "Could not parse AI response. Try again." });
         return;
       }
@@ -256,31 +273,23 @@ router.post(
       const rawPatch = (parsed.patch ?? {}) as Partial<ChatPatch>;
       const preset =
         typeof rawPatch.preset === "string" && VALID_PRESETS.includes(rawPatch.preset as Preset)
-          ? (rawPatch.preset as Preset)
-          : null;
+          ? (rawPatch.preset as Preset) : null;
       const customParams = validateCustomParams(rawPatch.customParams) ?? {};
       const generateVariations =
         typeof rawPatch.generateVariations === "boolean" ? rawPatch.generateVariations : null;
 
-      const reply =
-        typeof parsed.reply === "string" && parsed.reply.trim().length > 0
-          ? parsed.reply.slice(0, 1000)
-          : "Got it. What's next?";
+      const reply = typeof parsed.reply === "string" && parsed.reply.trim().length > 0
+        ? parsed.reply.slice(0, 1000) : "Got it. What's next?";
       const referenceSongs = sanitizeRefs(parsed.referenceSongs);
       const done = parsed.done === true;
 
-      const result: ChatResponse = {
-        reply,
+      res.json({
+        reply, referenceSongs, done, provider,
         patch: { preset, customParams, generateVariations },
-        referenceSongs,
-        done,
-      };
-      res.json(result);
+      } satisfies ChatResponse);
     } catch (err) {
-      logger.error({ err }, "AI chat failed");
-      res.status(502).json({
-        error: "AI service is unreachable. Try again in a moment.",
-      });
+      logger.error({ err, provider }, "AI chat failed");
+      res.status(502).json({ error: "AI service is unreachable. Try again in a moment." });
     }
   },
 );
