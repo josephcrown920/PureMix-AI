@@ -4,6 +4,8 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/requireAuth";
 import { aiChatLimiter } from "../../middlewares/rateLimit";
 import { validateCustomParams, PARAM_SPECS } from "../../lib/masteringParams";
+import { db, masteringJobsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -34,7 +36,23 @@ interface ChatResponse {
   done: boolean;
 }
 
-const SYSTEM_PROMPT = `You are Puremix, an AI mastering co-engineer for Afrobeats, amapiano, hip-hop, drill and trap producers.
+interface AudioAnalysis {
+  integrated_lufs: number;
+  loudness_range: number;
+  true_peak_dbfs: number;
+  rms_db: number;
+  crest_factor_db: number;
+  spectral_centroid_hz: number;
+  low_energy_ratio: number;
+  mid_energy_ratio: number;
+  high_energy_ratio: number;
+  stereo_width: number;
+  duration_sec: number;
+  sample_rate: number;
+}
+
+function buildSystemPrompt(analysis: AudioAnalysis | null): string {
+  const basePrompt = `You are Puremix, an AI mastering co-engineer for Afrobeats, amapiano, hip-hop, drill and trap producers.
 You are in a back-and-forth chat with the producer. Each turn you do TWO things:
 
 1. Talk like a friendly engineer — ask one focused question OR confirm the next move. Keep it 1-3 short sentences.
@@ -54,7 +72,7 @@ ${Object.entries(PARAM_SPECS)
 
 Reference songs:
 On the FIRST turn (or any turn where the producer describes a vibe), recommend 2-3 commercially released songs that
-sound similar to what they're going for, so they have a sonic reference while you mix. Format each as title, artist,
+sound similar to what they're going for, so they have a sonic reference. Format each as title, artist,
 and a one-line "why" (e.g. "Same wide stereo + warm low end"). If the producer hasn't given enough info, return [].
 
 Set "done": true ONLY when the producer is happy with the settings and ready to render
@@ -73,6 +91,40 @@ Output STRICT JSON. No prose. No markdown fences. Schema:
   ],
   "done": <true | false>
 }`;
+
+  if (!analysis) return basePrompt;
+
+  const lufsGap = -14 - analysis.integrated_lufs;
+  const bassProfile = analysis.low_energy_ratio > 0.42
+    ? "heavy bass — careful with low-shelf boosts"
+    : analysis.low_energy_ratio < 0.20
+    ? "thin low-end — could benefit from warmth"
+    : "balanced low-end";
+
+  const dynamicsProfile = analysis.loudness_range > 12
+    ? "very dynamic — wants compression"
+    : analysis.loudness_range < 3
+    ? "already brick-walled — be very gentle"
+    : "healthy dynamics";
+
+  const widthProfile = analysis.stereo_width < 0.15
+    ? "near-mono"
+    : analysis.stereo_width > 0.75
+    ? "extremely wide (phase risk)"
+    : "good stereo image";
+
+  return `${basePrompt}
+
+MEASURED AUDIO PROPERTIES (from the actual uploaded file — use these when making recommendations):
+- Integrated: ${analysis.integrated_lufs} LUFS (${lufsGap > 0 ? "+" : ""}${lufsGap.toFixed(1)} dB needed for streaming)
+- LRA (dynamic range): ${analysis.loudness_range} dB — ${dynamicsProfile}
+- Crest factor: ${analysis.crest_factor_db} dB (${analysis.crest_factor_db > 14 ? "punchy transients" : analysis.crest_factor_db < 8 ? "flat/squashed" : "moderate"})
+- Spectral centroid: ${analysis.spectral_centroid_hz.toFixed(0)} Hz (${analysis.spectral_centroid_hz < 1200 ? "dark/warm" : analysis.spectral_centroid_hz > 4000 ? "bright" : "balanced"})
+- Low energy: ${(analysis.low_energy_ratio * 100).toFixed(1)}% — ${bassProfile}
+- Stereo width: ${(analysis.stereo_width * 100).toFixed(0)}% — ${widthProfile}
+
+Refer to these numbers naturally when discussing the track with the producer — e.g. "Your track is measuring at ${analysis.integrated_lufs} LUFS, so it'll need a healthy gain boost for streaming."`;
+}
 
 function parseJsonObject(raw: string): Partial<ChatResponse> | null {
   if (!raw) return null;
@@ -140,7 +192,6 @@ router.post(
       return;
     }
 
-    // Sanitize: only role+content, length-cap.
     const messages: ChatMessage[] = [];
     for (const m of rawMessages) {
       if (!m || typeof m !== "object") continue;
@@ -162,15 +213,35 @@ router.post(
       return;
     }
 
+    // Look up audio analysis if jobId is provided — gives Claude real measurements
+    // to reason about rather than guessing from the text description alone.
+    let analysis: AudioAnalysis | null = null;
+    const rawJobId = req.body?.jobId;
+    if (rawJobId && typeof rawJobId === "number") {
+      try {
+        const [job] = await db
+          .select({ audioAnalysis: masteringJobsTable.audioAnalysis })
+          .from(masteringJobsTable)
+          .where(eq(masteringJobsTable.id, rawJobId));
+        if (job?.audioAnalysis) {
+          analysis = job.audioAnalysis as AudioAnalysis;
+        }
+      } catch (e) {
+        logger.warn({ e, jobId: rawJobId }, "Could not fetch job analysis for chat");
+      }
+    }
+
+    const systemPrompt = buildSystemPrompt(analysis);
+
     try {
       const response = await client.messages.create(
         {
-          model: "claude-haiku-4-5",
-          max_tokens: 800,
-          system: SYSTEM_PROMPT,
+          model: "claude-sonnet-4-5",
+          max_tokens: 1000,
+          system: systemPrompt,
           messages,
         },
-        { timeout: 18_000 },
+        { timeout: 25_000 },
       );
 
       const textBlock = response.content.find((b) => b.type === "text");
@@ -193,7 +264,7 @@ router.post(
 
       const reply =
         typeof parsed.reply === "string" && parsed.reply.trim().length > 0
-          ? parsed.reply.slice(0, 800)
+          ? parsed.reply.slice(0, 1000)
           : "Got it. What's next?";
       const referenceSongs = sanitizeRefs(parsed.referenceSongs);
       const done = parsed.done === true;

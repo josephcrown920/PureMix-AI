@@ -445,12 +445,86 @@ def report_progress(progress: int) -> None:
 # Entry points
 # ---------------------------------------------------------------------------
 
+def adapt_params_to_analysis(params: dict[str, Any], analysis: dict[str, Any], target_lufs: float) -> dict[str, Any]:
+    """
+    Intelligently adjust mastering parameters based on measured audio properties.
+    This is where the AI mastering becomes genuinely adaptive — it reads the
+    actual acoustics of the track and compensates accordingly.
+    """
+    p = dict(params)
+
+    low_ratio = analysis.get("low_energy_ratio", 0.3)
+    lra = analysis.get("loudness_range", 8.0)
+    stereo_width = analysis.get("stereo_width", 0.5)
+    crest_factor = analysis.get("crest_factor_db", 12.0)
+    integrated = analysis.get("integrated_lufs", -18.0)
+    spectral_centroid = analysis.get("spectral_centroid_hz", 2000.0)
+
+    # --- Low-end management ---
+    # If the track already has heavy low-end energy (bass-dominant), pull back
+    # our EQ boost to avoid muddiness. If it's thin/bright, push more low end.
+    if low_ratio > 0.45:
+        p["low_shelf_db"] = max(float(p.get("low_shelf_db", 1.0)) - 2.0, -3.0)
+    elif low_ratio < 0.18:
+        p["low_shelf_db"] = min(float(p.get("low_shelf_db", 1.0)) + 1.5, 5.0)
+
+    # --- Dynamics (LRA-aware compression) ---
+    # High LRA = very dynamic material → apply more compression to glue it.
+    # Low LRA = already brick-walled → ease off compression, just normalize.
+    if lra > 12.0:
+        p["compressor_ratio"] = min(float(p.get("compressor_ratio", 2.5)) * 1.35, 8.0)
+        p["compressor_threshold_db"] = max(float(p.get("compressor_threshold_db", -16)) - 3.0, -32.0)
+    elif lra > 8.0:
+        p["compressor_ratio"] = min(float(p.get("compressor_ratio", 2.5)) * 1.15, 6.0)
+    elif lra < 3.0:
+        # Already over-compressed — be very gentle
+        p["compressor_ratio"] = max(float(p.get("compressor_ratio", 2.5)) * 0.65, 1.3)
+        p["compressor_threshold_db"] = min(float(p.get("compressor_threshold_db", -16)) + 4.0, -6.0)
+
+    # --- Transient handling (crest factor) ---
+    # High crest factor = punchy, dynamic transients → preserve them.
+    # Low crest factor = crushed transients already → no need to sharpen further.
+    if crest_factor > 16.0:
+        # Very dynamic — back off transient attack to preserve natural feel
+        p["transient_attack"] = max(float(p.get("transient_attack", 0.1)) - 0.1, -0.2)
+    elif crest_factor < 8.0:
+        # Flat / already compressed — add some transient definition
+        p["transient_attack"] = min(float(p.get("transient_attack", 0.1)) + 0.15, 0.5)
+
+    # --- Stereo width ---
+    # Near-mono tracks benefit from subtle widening; already wide tracks don't need it.
+    if stereo_width < 0.12:
+        p["stereo_width"] = min(float(p.get("stereo_width", 1.1)) * 1.2, 1.4)
+    elif stereo_width > 0.75:
+        # Extremely wide — pull back slightly to keep mono compatibility
+        p["stereo_width"] = max(float(p.get("stereo_width", 1.1)) * 0.9, 0.95)
+
+    # --- Brightness / air ---
+    # Dark/warm tracks (low spectral centroid) get an air boost.
+    # Already bright tracks don't need more high shelf.
+    if spectral_centroid < 1200.0:
+        p["air_db"] = min(float(p.get("air_db", 1.5)) + 1.5, 5.0)
+    elif spectral_centroid > 4000.0:
+        p["air_db"] = max(float(p.get("air_db", 1.5)) - 1.0, -1.0)
+
+    # --- Gain headroom ---
+    # If the track is already close to target LUFS, apply a gentler DSP pass
+    # since we won't be pushing it hard — reduces unnecessary saturation.
+    lufs_delta = abs(integrated - target_lufs)
+    if lufs_delta < 2.0:
+        p["saturation_amount"] = max(float(p.get("saturation_amount", 0.1)) * 0.6, 0.03)
+        p["compressor_ratio"] = max(float(p.get("compressor_ratio", 2.5)) * 0.8, 1.3)
+
+    return p
+
+
 def run_single(
     input_path: str,
     output_path: str,
     preset: str,
     target_lufs: float,
     custom_params: Optional[dict[str, Any]],
+    analysis: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     import pyloudnorm as pyln
 
@@ -464,6 +538,11 @@ def run_single(
 
     base = PRESET_PARAMS.get(preset, PRESET_PARAMS["streaming"])
     params = merge_params(base, custom_params or {})
+
+    # Adaptive DSP: adjust parameters based on measured audio characteristics
+    if analysis:
+        params = adapt_params_to_analysis(params, analysis, target_lufs)
+
     report_progress(35)
 
     processed, out_lufs = process_with_params(data, rate, params, target_lufs)
@@ -485,6 +564,7 @@ def run_variations(
     preset: str,
     target_lufs: float,
     custom_params: Optional[dict[str, Any]],
+    analysis: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Generate all 3 AI variations. The 'ai_pick' variant is also written
     to `primary_output` so legacy single-output consumers still work.
@@ -502,6 +582,10 @@ def run_variations(
 
     base_preset = PRESET_PARAMS.get(preset, PRESET_PARAMS["streaming"])
     base_params = merge_params(base_preset, custom_params or {})
+
+    # Adaptive DSP: adjust base parameters based on measured audio characteristics
+    if analysis:
+        base_params = adapt_params_to_analysis(base_params, analysis, target_lufs)
 
     variant_ids = list(VARIATION_STRATEGIES.keys())
     n = len(variant_ids)
@@ -553,6 +637,7 @@ if __name__ == "__main__":
 
     custom_params: Optional[dict[str, Any]] = None
     variants_dir: Optional[str] = None
+    analysis: Optional[dict[str, Any]] = None
 
     args = sys.argv[5:]
     i = 0
@@ -567,6 +652,12 @@ if __name__ == "__main__":
                 print(json.dumps({"type": "error", "error": f"Invalid params JSON: {e}"}), flush=True)
                 sys.exit(1)
             i += 2
+        elif args[i] == "--analysis" and i + 1 < len(args):
+            try:
+                analysis = json.loads(args[i + 1])
+            except json.JSONDecodeError:
+                analysis = None
+            i += 2
         else:
             # Backward compat: 5th positional = params JSON
             if custom_params is None and args[i].startswith("{"):
@@ -579,11 +670,11 @@ if __name__ == "__main__":
     try:
         if variants_dir:
             result = run_variations(
-                input_path, output_path, variants_dir, preset, target_lufs, custom_params,
+                input_path, output_path, variants_dir, preset, target_lufs, custom_params, analysis,
             )
         else:
             result = run_single(
-                input_path, output_path, preset, target_lufs, custom_params,
+                input_path, output_path, preset, target_lufs, custom_params, analysis,
             )
         print(json.dumps({"type": "result", **result}, default=str), flush=True)
     except Exception as e:  # noqa: BLE001

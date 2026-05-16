@@ -24,6 +24,63 @@ interface VariantMeta {
   outputLufs: number;
 }
 
+interface AudioAnalysis {
+  integrated_lufs: number;
+  loudness_range: number;
+  true_peak_dbfs: number;
+  rms_db: number;
+  crest_factor_db: number;
+  spectral_centroid_hz: number;
+  low_energy_ratio: number;
+  mid_energy_ratio: number;
+  high_energy_ratio: number;
+  stereo_width: number;
+  duration_sec: number;
+  sample_rate: number;
+}
+
+/**
+ * Run the audio analysis script on an input file.
+ * Returns null if analysis fails — mastering can still proceed without it,
+ * just with non-adaptive parameters.
+ */
+async function runAudioAnalysis(inputPath: string): Promise<AudioAnalysis | null> {
+  const scriptPath = path.join(__dirname, "audioAnalysis.py");
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [scriptPath, inputPath]);
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        logger.warn({ stderr, code }, "Audio analysis script failed — proceeding without analysis");
+        resolve(null);
+        return;
+      }
+      try {
+        const result = JSON.parse(stdout.trim()) as AudioAnalysis & { error?: string };
+        if (result.error) {
+          logger.warn({ error: result.error }, "Audio analysis returned error");
+          resolve(null);
+        } else {
+          resolve(result);
+        }
+      } catch (e) {
+        logger.warn({ e, stdout }, "Could not parse audio analysis output");
+        resolve(null);
+      }
+    });
+
+    proc.on("error", (err) => {
+      logger.warn({ err }, "Failed to spawn audio analysis script");
+      resolve(null);
+    });
+  });
+}
+
 export async function processMasteringJob(jobId: number): Promise<void> {
   const [job] = await db
     .select()
@@ -48,6 +105,23 @@ export async function processMasteringJob(jobId: number): Promise<void> {
       .set({ status: "processing", progress: 5, processingStartedAt: new Date() })
       .where(eq(masteringJobsTable.id, jobId));
 
+    // --- Phase 1: Audio analysis (fast ~2-3s) ---
+    // Run before mastering so we have real measurements to adapt the DSP chain.
+    // If analysis fails, mastering still proceeds with preset defaults.
+    logger.info({ jobId }, "Running audio analysis");
+    const analysis = await runAudioAnalysis(job.inputPath);
+
+    if (analysis) {
+      logger.info({ jobId, analysis }, "Audio analysis complete");
+      await db
+        .update(masteringJobsTable)
+        .set({ audioAnalysis: analysis, progress: 12 })
+        .where(eq(masteringJobsTable.id, jobId));
+    } else {
+      logger.warn({ jobId }, "Audio analysis unavailable — using preset defaults");
+    }
+
+    // --- Phase 2: Mastering ---
     const baseName = job.filename.replace(/\.[^.]+$/, "");
     const outputFilename = `mastered_${baseName}.wav`;
     const outputDir = path.join(__dirname, "..", "..", "uploads", "output");
@@ -59,9 +133,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
     const scriptPath = path.join(__dirname, "audioMastering.py");
 
-    // Variations are triggered by the presence of any variants array (the
-    // upload route inserts an empty array as a flag). We render into a
-    // dedicated per-job folder so multiple jobs never collide.
     const wantsVariations = Array.isArray(job.variants);
     const variantsDir = wantsVariations
       ? path.join(outputDir, "variants", `job_${job.id}`)
@@ -79,6 +150,9 @@ export async function processMasteringJob(jobId: number): Promise<void> {
     if (job.customParams && Object.keys(job.customParams).length > 0) {
       args.push("--params", JSON.stringify(job.customParams));
     }
+    if (analysis) {
+      args.push("--analysis", JSON.stringify(analysis));
+    }
     if (variantsDir) {
       args.push("--variations", variantsDir);
     }
@@ -94,17 +168,11 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
     const elapsed = Date.now() - processingStart;
 
-    // Crash-safety guard: if the user requested variations but the Python
-    // process didn't return a non-empty `variants` array, treat the job as
-    // failed rather than silently writing an inconsistent "completed" row.
-    // This catches the case where the process exits cleanly mid-render or
-    // the result payload was lost.
     if (wantsVariations && (!result.variants || result.variants.length === 0)) {
       throw new Error(
         "AI variations were requested but the engine did not return a complete variants manifest. The job has been marked failed; please retry.",
       );
     }
-    // Sanity-check that all variant files exist on disk before committing.
     if (result.variants) {
       for (const v of result.variants) {
         if (!v.outputPath || !fs.existsSync(v.outputPath)) {
@@ -126,8 +194,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
         measuredInputLufs: result.input_lufs ?? null,
         measuredOutputLufs: result.output_lufs ?? null,
         variants: result.variants ?? job.variants ?? null,
-        // Default selected variant to ai_pick when variations were generated
-        // and the user hasn't picked one yet.
         selectedVariantId: result.variants && !job.selectedVariantId
           ? "ai_pick"
           : job.selectedVariantId,
@@ -137,7 +203,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
 
     logger.info({ jobId, outputPath }, "Mastering job completed");
 
-    // Fire-and-forget email if this job already has download access.
     try {
       const { sendEmailsForRecentlyUnlockedJobs } = await import(
         "./postPurchaseEmail"
@@ -152,13 +217,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
     const errorMessage = err instanceof Error ? err.message : String(err);
     logger.error({ jobId, err }, "Mastering job failed");
 
-    // Mark failed AND, if the failure is on our side, refund the credit that
-    // was reserved when the job was submitted. Day-pass / lifetime users have
-    // nothing to refund; only "credit" consumers do.
-    //
-    // CRITICAL: must be idempotent. If this catch fires twice for the same
-    // jobId (e.g. worker retry after a crash), we'd double-refund. We guard
-    // by only refunding when the row's current status is NOT already 'failed'.
     await db.transaction(async (tx) => {
       const updated = await tx
         .update(masteringJobsTable)
@@ -166,7 +224,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
           status: "failed",
           errorMessage,
           completedAt: new Date(),
-          // Revoke download entitlement so the failed row can't be downloaded.
           downloadUnlocked: false,
         })
         .where(
@@ -177,8 +234,6 @@ export async function processMasteringJob(jobId: number): Promise<void> {
         )
         .returning({ id: masteringJobsTable.id });
 
-      // updated.length === 0 means another worker already marked this job
-      // failed and (potentially) already refunded the credit. Skip.
       if (updated.length === 0) {
         logger.warn({ jobId }, "Job already marked failed; skipping refund");
         return;
@@ -213,9 +268,6 @@ function runPythonScript(
     const proc = spawn("python3", [scriptPath, ...args]);
     let result: PythonResult = {};
     let errorOutput = "";
-    // Buffer incomplete lines across chunks — without this, a JSON message
-    // split across two stdout writes (likely with the larger result payload
-    // containing variant metadata) would be silently dropped.
     let stdoutBuf = "";
 
     const handleLine = (line: string): void => {
@@ -259,7 +311,6 @@ function runPythonScript(
     });
 
     proc.on("close", (code) => {
-      // Flush any trailing line that didn't end in \n.
       if (stdoutBuf.length > 0) handleLine(stdoutBuf);
       if (code === 0) {
         resolve(result);

@@ -36,6 +36,22 @@ export const masteringJobsTable = pgTable("mastering_jobs", {
     outputLufs: number;
   }>>(),
   selectedVariantId: text("selected_variant_id"),
+  // Acoustic measurements taken from the raw input file before any DSP.
+  // Populated by the analysis step in masteringProcessor before mastering runs.
+  audioAnalysis: jsonb("audio_analysis").$type<{
+    integrated_lufs: number;
+    loudness_range: number;
+    true_peak_dbfs: number;
+    rms_db: number;
+    crest_factor_db: number;
+    spectral_centroid_hz: number;
+    low_energy_ratio: number;
+    mid_energy_ratio: number;
+    high_energy_ratio: number;
+    stereo_width: number;
+    duration_sec: number;
+    sample_rate: number;
+  }>(),
   emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
