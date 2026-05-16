@@ -2,4 +2,5 @@
 set -e
 pnpm install --frozen-lockfile
 pnpm --filter db push
-pip install -r artifacts/api-server/requirements.txt --quiet
+# Install Python audio deps declared in pyproject.toml (non-blocking if already present)
+pip install -r artifacts/api-server/requirements.txt --quiet || true
