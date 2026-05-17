@@ -1,26 +1,12 @@
 #!/usr/bin/env python3
 """
-Fast audio analysis — measures acoustic properties without any DSP processing.
-Used to give Claude real data about the uploaded track so AI suggestions are
-grounded in actual measurements rather than guesswork.
+Audio Analysis Engine v2 — librosa-powered
+
+Measures acoustic properties used to drive the adaptive mastering engine.
 
 CLI: python audioAnalysis.py <input_path>
 
-Output (stdout): single JSON object
-  {
-    "integrated_lufs": float,     # ITU-R BS.1770 integrated loudness
-    "loudness_range": float,      # LRA — dynamic range measure (dB)
-    "true_peak_dbfs": float,      # absolute peak level in dBFS
-    "rms_db": float,              # RMS level in dBFS
-    "crest_factor_db": float,     # peak/RMS ratio (higher = more dynamic)
-    "spectral_centroid_hz": float,# perceptual "brightness" center frequency
-    "low_energy_ratio": float,    # fraction of energy below 250 Hz
-    "mid_energy_ratio": float,    # fraction of energy 250–4000 Hz
-    "high_energy_ratio": float,   # fraction of energy above 4000 Hz
-    "stereo_width": float,        # 0 = mono, 1 = fully decorrelated stereo
-    "duration_sec": float,        # track length in seconds
-    "sample_rate": int,           # sample rate in Hz
-  }
+Output (stdout): single JSON object with all measurements.
 """
 
 import sys
@@ -69,7 +55,6 @@ def compute_loudness(data, rate: int) -> tuple[float, float]:
     if integrated is None or (isinstance(integrated, float) and integrated != integrated):
         integrated = -70.0
 
-    # LRA: measure over 3-second blocks, take difference between high and low
     block_size = int(rate * 3.0)
     if block_size >= len(data):
         lra = 0.0
@@ -100,30 +85,21 @@ def compute_level_stats(data) -> tuple[float, float, float]:
     """Return (true_peak_dbfs, rms_db, crest_factor_db)."""
     peak = float(np.max(np.abs(data)))
     true_peak_dbfs = 20.0 * np.log10(peak + 1e-9)
-
     rms = float(np.sqrt(np.mean(data ** 2)))
     rms_db = 20.0 * np.log10(rms + 1e-9)
-
     crest_factor_db = true_peak_dbfs - rms_db
     return true_peak_dbfs, rms_db, crest_factor_db
 
 
 def compute_spectral_features(data, rate: int) -> tuple[float, float, float, float]:
-    """Return (spectral_centroid_hz, low_ratio, mid_ratio, high_ratio).
-
-    Uses a windowed FFT on the mono downmix. Analysis is done on up to 30s
-    of audio (mid-section) for speed.
-    """
+    """Return (spectral_centroid_hz, low_ratio, mid_ratio, high_ratio) via FFT."""
     mono = data.mean(axis=1)
-
-    # Sample up to 30 seconds from the middle of the track
     max_samples = int(rate * 30)
     if len(mono) > max_samples:
         mid = len(mono) // 2
         half = max_samples // 2
         mono = mono[mid - half:mid + half]
 
-    # Hann-windowed FFT
     n = len(mono)
     window = np.hanning(n)
     spectrum = np.abs(np.fft.rfft(mono * window))
@@ -131,35 +107,107 @@ def compute_spectral_features(data, rate: int) -> tuple[float, float, float, flo
 
     power = spectrum ** 2
     total_power = float(np.sum(power)) + 1e-12
-
-    # Spectral centroid
     centroid = float(np.sum(freqs * power) / total_power)
 
-    # Band energy ratios
-    low_mask = freqs < 250
-    mid_mask = (freqs >= 250) & (freqs < 4000)
-    high_mask = freqs >= 4000
-
-    low_ratio = float(np.sum(power[low_mask])) / total_power
-    mid_ratio = float(np.sum(power[mid_mask])) / total_power
-    high_ratio = float(np.sum(power[high_mask])) / total_power
+    low_ratio = float(np.sum(power[freqs < 250])) / total_power
+    mid_ratio = float(np.sum(power[(freqs >= 250) & (freqs < 4000)])) / total_power
+    high_ratio = float(np.sum(power[freqs >= 4000])) / total_power
 
     return centroid, low_ratio, mid_ratio, high_ratio
 
 
 def compute_stereo_width(data) -> float:
-    """Stereo width via M/S analysis. 0 = mono, 1 = fully wide."""
+    """Stereo width via M/S. 0 = mono, 1 = fully decorrelated."""
     if data.shape[1] < 2:
         return 0.0
     mid = (data[:, 0] + data[:, 1]) / 2.0
     side = (data[:, 0] - data[:, 1]) / 2.0
-
     mid_rms = float(np.sqrt(np.mean(mid ** 2))) + 1e-9
     side_rms = float(np.sqrt(np.mean(side ** 2))) + 1e-9
+    return float(np.clip(side_rms / (mid_rms + side_rms), 0.0, 1.0))
 
-    # Ratio of side energy to total energy — 0 at mono, ~1 at full stereo
-    width = side_rms / (mid_rms + side_rms)
-    return float(np.clip(width, 0.0, 1.0))
+
+def compute_librosa_features(data, rate: int) -> dict:
+    """
+    Richer analysis using librosa:
+      - tempo / BPM
+      - sub-bass energy ratio (<80 Hz)
+      - sibilance energy ratio (5–10 kHz) — high = likely harsh
+      - spectral contrast (brightness discrimination)
+      - zero crossing rate (speech vs music indicator)
+      - genre_hint: 'afrobeats' | 'hiphop' | 'trap' | 'general'
+    """
+    try:
+        import librosa
+
+        mono = data.mean(axis=1).astype(np.float32)
+
+        # Use up to 60 seconds from the middle for speed
+        max_s = int(rate * 60)
+        if len(mono) > max_s:
+            mid = len(mono) // 2
+            mono = mono[mid - max_s // 2: mid + max_s // 2]
+
+        # --- Tempo ---
+        try:
+            tempo_arr, _ = librosa.beat.beat_track(y=mono, sr=rate)
+            tempo = float(np.atleast_1d(tempo_arr)[0])
+        except Exception:
+            tempo = 0.0
+
+        # --- STFT for band energy ---
+        hop = 512
+        n_fft = 2048
+        S = np.abs(librosa.stft(mono, n_fft=n_fft, hop_length=hop)) ** 2
+        freqs = librosa.fft_frequencies(sr=rate, n_fft=n_fft)
+        total_e = float(S.sum()) + 1e-12
+
+        sub_mask = freqs < 80
+        sib_mask = (freqs >= 5000) & (freqs <= 10000)
+        sub_ratio = float(S[sub_mask].sum()) / total_e
+        sib_ratio = float(S[sib_mask].sum()) / total_e
+
+        # --- Spectral contrast ---
+        contrast = librosa.feature.spectral_contrast(S=S, sr=rate, n_fft=n_fft, hop_length=hop)
+        mean_contrast = float(contrast.mean())
+
+        # --- Zero crossing rate ---
+        zcr = float(librosa.feature.zero_crossing_rate(mono, hop_length=hop).mean())
+
+        # --- Naive genre hint ---
+        # Trap: slow/fast BPM + very heavy sub, scooped mids
+        # Hip-hop: moderate BPM + heavy sub, punchy
+        # Afrobeats: 90-130 BPM, bright, moderate sub
+        # General: everything else
+        genre_hint = "general"
+        if sub_ratio > 0.25 and tempo < 85:
+            genre_hint = "trap"
+        elif sub_ratio > 0.20 and 80 <= tempo <= 115:
+            genre_hint = "hiphop"
+        elif 90 <= tempo <= 135 and sib_ratio > 0.04:
+            genre_hint = "afrobeats"
+        elif sub_ratio > 0.18:
+            genre_hint = "hiphop"
+
+        return {
+            "tempo_bpm": round(tempo, 1),
+            "sub_bass_ratio": round(sub_ratio, 3),
+            "sibilance_ratio": round(sib_ratio, 4),
+            "spectral_contrast": round(mean_contrast, 2),
+            "zero_crossing_rate": round(zcr, 4),
+            "genre_hint": genre_hint,
+        }
+
+    except Exception as e:
+        return {
+            "tempo_bpm": 0.0,
+            "sub_bass_ratio": 0.0,
+            "sibilance_ratio": 0.0,
+            "spectral_contrast": 0.0,
+            "zero_crossing_rate": 0.0,
+            "genre_hint": "general",
+            "librosa_error": str(e),
+        }
 
 
 def analyze(input_path: str) -> dict:
@@ -170,6 +218,7 @@ def analyze(input_path: str) -> dict:
     true_peak_dbfs, rms_db, crest_factor_db = compute_level_stats(data)
     spectral_centroid_hz, low_ratio, mid_ratio, high_ratio = compute_spectral_features(data, rate)
     stereo_width = compute_stereo_width(data)
+    librosa_features = compute_librosa_features(data, rate)
 
     return {
         "integrated_lufs": round(integrated_lufs, 2),
@@ -184,6 +233,7 @@ def analyze(input_path: str) -> dict:
         "stereo_width": round(stereo_width, 3),
         "duration_sec": round(duration_sec, 2),
         "sample_rate": rate,
+        **librosa_features,
     }
 
 

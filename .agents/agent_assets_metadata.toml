@@ -30,3 +30,9 @@ id = "nMHFtvZYE3qMdEA4M0iAr"
 uri = "file://mud_in_my_veins_MASTERED_v2.wav"
 type = "audio"
 title = "mud in my veins — Mastered v2 (smoother)"
+
+[[outputs]]
+id = "Aq-sr-f3rsdLpXLUN5pqi"
+uri = "file://mud_in_my_veins_MASTERED_v3.wav"
+type = "audio"
+title = "mud in my veins — Mastered v3 (Afrobeats, -14 LUFS)"
