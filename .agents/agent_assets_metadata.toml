@@ -24,3 +24,9 @@ id = "VxpPyC7ffqCKtYWcsW7X2"
 uri = "file://mud_in_my_veins_MASTERING_REPORT.txt"
 type = "text"
 title = "Mastering Session Report"
+
+[[outputs]]
+id = "nMHFtvZYE3qMdEA4M0iAr"
+uri = "file://mud_in_my_veins_MASTERED_v2.wav"
+type = "audio"
+title = "mud in my veins — Mastered v2 (smoother)"
