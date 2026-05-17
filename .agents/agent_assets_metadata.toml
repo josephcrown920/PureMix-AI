@@ -12,3 +12,15 @@ id = "8qcTG-oZq5xjpuQjIBoKp"
 uri = "file://NBA_Josh_December_MASTERED.wav"
 type = "audio"
 title = "NBA Josh — December (Mastered)"
+
+[[outputs]]
+id = "6V2_oMGER_NmTdzu78qEI"
+uri = "file://mud_in_my_veins_MASTERED.wav"
+type = "audio"
+title = "mud in my veins freestyle — Mastered WAV"
+
+[[outputs]]
+id = "VxpPyC7ffqCKtYWcsW7X2"
+uri = "file://mud_in_my_veins_MASTERING_REPORT.txt"
+type = "text"
+title = "Mastering Session Report"
