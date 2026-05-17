@@ -6,3 +6,9 @@ id = "xBUpYhPwjq637HjJKAeOr"
 uri = "file://artifacts/api-server/uploads/output/Two_Days_mastered.wav"
 type = "audio"
 title = "Two Days — Mastered (Streaming -14 LUFS)"
+
+[[outputs]]
+id = "8qcTG-oZq5xjpuQjIBoKp"
+uri = "file://NBA_Josh_December_MASTERED.wav"
+type = "audio"
+title = "NBA Josh — December (Mastered)"
