@@ -46,12 +46,15 @@ const upload = multer({
   },
 });
 
-const VALID_PRESETS = ["streaming", "club", "warm_vinyl", "broadcast", "custom"] as const;
+const VALID_PRESETS = ["streaming", "club", "warm_vinyl", "broadcast", "afrobeats", "hiphop", "trap", "custom"] as const;
 const PRESET_LUFS: Record<string, number> = {
   streaming: -14,
   club: -7,
   warm_vinyl: -12,
   broadcast: -23,
+  afrobeats: -9,
+  hiphop: -8,
+  trap: -8,
   custom: -14,
 };
 
@@ -102,9 +105,14 @@ router.get("/mastering/jobs", async (req, res): Promise<void> => {
 router.post(
   "/mastering/jobs",
   uploadLimiter,
-  upload.single("audio"),
+  upload.fields([{ name: "audio", maxCount: 1 }, { name: "reference", maxCount: 1 }]),
   async (req, res): Promise<void> => {
-    if (!req.file) {
+    const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const audioFile = files?.["audio"]?.[0];
+    const referenceFile = files?.["reference"]?.[0];
+
+    if (!audioFile) {
+      if (referenceFile) try { fs.unlinkSync(referenceFile.path); } catch { /* ignore */ }
       res.status(400).json({ error: "No audio file uploaded" });
       return;
     }
@@ -115,13 +123,15 @@ router.post(
     // download unlocked + email after mastering completes.
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
     if (!user) {
-      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+      try { fs.unlinkSync(audioFile.path); } catch { /* ignore */ }
+      if (referenceFile) try { fs.unlinkSync(referenceFile.path); } catch { /* ignore */ }
       res.status(404).json({ error: "User not found" });
       return;
     }
     const ent = computeEntitlement(user);
     if (!ent.allowed) {
-      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+      try { fs.unlinkSync(audioFile.path); } catch { /* ignore */ }
+      if (referenceFile) try { fs.unlinkSync(referenceFile.path); } catch { /* ignore */ }
       res.status(402).json({
         error: "No credits. $2 for one master, $10 for a 24-hour pass, or $200 lifetime.",
         code: "PLAN_LIMIT",
@@ -147,7 +157,8 @@ router.post(
         .where(and(eq(usersTable.id, userId), sql`${usersTable.credits} > 0`))
         .returning({ credits: usersTable.credits });
       if (result.length === 0) {
-        try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+        try { fs.unlinkSync(audioFile.path); } catch { /* ignore */ }
+        if (referenceFile) try { fs.unlinkSync(referenceFile.path); } catch { /* ignore */ }
         res.status(402).json({ error: "No credits remaining.", code: "PLAN_LIMIT" });
         return;
       }
@@ -187,13 +198,15 @@ router.post(
       req.body.generateVariations === "true" ||
       req.body.generateVariations === "1";
 
+    const referencePath = referenceFile?.path ?? null;
+
     const [job] = await db
       .insert(masteringJobsTable)
       .values({
         userId,
-        filename: req.file.filename,
-        originalFilename: req.file.originalname,
-        inputPath: req.file.path,
+        filename: audioFile.filename,
+        originalFilename: audioFile.originalname,
+        inputPath: audioFile.path,
         preset,
         status: "pending",
         progress: 0,
@@ -207,7 +220,7 @@ router.post(
 
     res.status(201).json(jobToJson(job));
 
-    processMasteringJob(job.id).catch((err: unknown) => {
+    processMasteringJob(job.id, referencePath).catch((err: unknown) => {
       logger.error({ err, jobId: job.id }, "Background mastering job failed");
     });
   },

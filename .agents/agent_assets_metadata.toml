@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "Wq8Q17RZ9uP3EIBO2gJdR"
+uri = "file://artifacts/puremix-mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"
 
 [[outputs]]
 id = "xBUpYhPwjq637HjJKAeOr"

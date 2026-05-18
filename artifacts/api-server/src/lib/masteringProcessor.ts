@@ -81,7 +81,7 @@ async function runAudioAnalysis(inputPath: string): Promise<AudioAnalysis | null
   });
 }
 
-export async function processMasteringJob(jobId: number): Promise<void> {
+export async function processMasteringJob(jobId: number, referencePath: string | null = null): Promise<void> {
   const [job] = await db
     .select()
     .from(masteringJobsTable)
@@ -155,6 +155,9 @@ export async function processMasteringJob(jobId: number): Promise<void> {
     }
     if (variantsDir) {
       args.push("--variations", variantsDir);
+    }
+    if (referencePath && fs.existsSync(referencePath)) {
+      args.push("--reference", referencePath);
     }
 
     const minWait = new Promise<void>((resolve) =>

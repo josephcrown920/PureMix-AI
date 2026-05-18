@@ -22,7 +22,7 @@ import {
 } from "@/components/TotalControlPanel";
 import { PromptChatPanel } from "@/components/PromptChatPanel";
 import type { ChatPatch } from "@/lib/api";
-type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "custom";
+type CreateMasteringJobBodyPreset = "streaming" | "club" | "warm_vinyl" | "broadcast" | "afrobeats" | "hiphop" | "trap" | "custom";
 
 export function UploadPage() {
   const [, setLocation] = useLocation();
@@ -38,7 +38,9 @@ export function UploadPage() {
     params: {},
   });
   const [submitting, setSubmitting] = useState(false);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const refInputRef = useRef<HTMLInputElement>(null);
 
   const { data: stats } = useGetMasteringStats();
   const { data: me } = useMe();
@@ -115,6 +117,7 @@ export function UploadPage() {
         preset,
         customParams: buildCustomParamsPayload(totalControl),
         generateVariations,
+        referenceFile,
       });
 
       toast({
@@ -387,50 +390,74 @@ export function UploadPage() {
                 className="gap-3"
                 data-testid="preset-selection"
               >
-                <div className="relative">
-                  <RadioGroupItem value="streaming" id="streaming" className="peer sr-only" />
-                  <Label
-                    htmlFor="streaming"
-                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
-                  >
-                    <span className="font-semibold text-base">{PRESET_LABELS["streaming"]}</span>
-                    <span className="text-xs text-muted-foreground font-normal">Balanced dynamics, perfect for Spotify, Apple Music.</span>
-                  </Label>
-                </div>
-                
-                <div className="relative">
-                  <RadioGroupItem value="club" id="club" className="peer sr-only" />
-                  <Label
-                    htmlFor="club"
-                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
-                  >
-                    <span className="font-semibold text-base">{PRESET_LABELS["club"]}</span>
-                    <span className="text-xs text-muted-foreground font-normal">Heavy limiting, maximized perceived loudness.</span>
-                  </Label>
-                </div>
-                
-                <div className="relative">
-                  <RadioGroupItem value="warm_vinyl" id="warm_vinyl" className="peer sr-only" />
-                  <Label
-                    htmlFor="warm_vinyl"
-                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
-                  >
-                    <span className="font-semibold text-base">{PRESET_LABELS["warm_vinyl"]}</span>
-                    <span className="text-xs text-muted-foreground font-normal">Analog warmth, preserved transients, richer low-end.</span>
-                  </Label>
-                </div>
-                
-                <div className="relative">
-                  <RadioGroupItem value="broadcast" id="broadcast" className="peer sr-only" />
-                  <Label
-                    htmlFor="broadcast"
-                    className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
-                  >
-                    <span className="font-semibold text-base">{PRESET_LABELS["broadcast"]}</span>
-                    <span className="text-xs text-muted-foreground font-normal">Strict EBU R128 compliance for TV and radio.</span>
-                  </Label>
-                </div>
+                {[
+                  { value: "afrobeats", desc: "Punchy sub-bass, bright percussion, modern African sound. -9 LUFS." },
+                  { value: "hiphop", desc: "Deep 808s, crisp snares, radio-ready compression. -8 LUFS." },
+                  { value: "trap", desc: "Heavy sub-bass, hi-hat rolls, cinematic dynamics. -8 LUFS." },
+                  { value: "streaming", desc: "Balanced dynamics, perfect for Spotify, Apple Music. -14 LUFS." },
+                  { value: "club", desc: "Heavy limiting, maximized perceived loudness. -7 LUFS." },
+                  { value: "warm_vinyl", desc: "Analog warmth, preserved transients, richer low-end. -12 LUFS." },
+                  { value: "broadcast", desc: "Strict EBU R128 compliance for TV and radio. -23 LUFS." },
+                ].map(({ value, desc }) => (
+                  <div key={value} className="relative">
+                    <RadioGroupItem value={value} id={value} className="peer sr-only" />
+                    <Label
+                      htmlFor={value}
+                      className="flex flex-col gap-1 rounded-md border border-border/50 bg-background/50 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all"
+                    >
+                      <span className="font-semibold text-base">{PRESET_LABELS[value]}</span>
+                      <span className="text-xs text-muted-foreground font-normal">{desc}</span>
+                    </Label>
+                  </div>
+                ))}
               </RadioGroup>
+
+              {/* Reference Track Upload */}
+              <div className="mt-5">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Music size={13} className="text-primary" />
+                    Reference Track
+                    <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional)</span>
+                  </Label>
+                  {referenceFile && (
+                    <button
+                      type="button"
+                      onClick={() => { setReferenceFile(null); if (refInputRef.current) refInputRef.current.value = ""; }}
+                      className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={refInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".mp3,.wav,.flac,audio/mpeg,audio/wav,audio/flac"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setReferenceFile(f);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => refInputRef.current?.click()}
+                  className={`w-full rounded-md border border-dashed p-3 text-sm text-center transition-all ${
+                    referenceFile
+                      ? "border-primary/40 bg-primary/5 text-primary"
+                      : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground"
+                  }`}
+                >
+                  {referenceFile ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <FileAudio size={13} /> {referenceFile.name}
+                    </span>
+                  ) : (
+                    "Click to upload reference track (Matchering AI match)"
+                  )}
+                </button>
+              </div>
 
               <div className="mt-5 flex items-center justify-between rounded-md border border-border/50 bg-background/40 px-4 py-3">
                 <div className="flex-1 pr-3">

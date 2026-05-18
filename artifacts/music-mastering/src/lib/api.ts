@@ -107,6 +107,7 @@ export interface CreateMasteringJobOptions {
   targetLufs?: number | null;
   customParams?: Record<string, number | boolean> | null;
   generateVariations?: boolean;
+  referenceFile?: File | null;
 }
 
 export async function createMasteringJob(
@@ -121,6 +122,7 @@ export async function createMasteringJob(
     fd.append("customParams", JSON.stringify(opts.customParams));
   }
   if (opts.generateVariations) fd.append("generateVariations", "true");
+  if (opts.referenceFile) fd.append("reference", opts.referenceFile);
   return customFetch<{ id: number } & Record<string, unknown>>(
     "/api/mastering/jobs",
     { method: "POST", body: fd },

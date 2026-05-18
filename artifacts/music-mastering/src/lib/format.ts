@@ -39,6 +39,9 @@ export const PRESET_LABELS: Record<string, string> = {
   club: "Club / Loud (-7 LUFS)",
   warm_vinyl: "Warm Vinyl (-12 LUFS)",
   broadcast: "Broadcast (-23 LUFS)",
+  afrobeats: "Afrobeats (-9 LUFS)",
+  hiphop: "Hip-Hop / Trap (-8 LUFS)",
+  trap: "Trap / Drill (-8 LUFS)",
   custom: "Custom",
 }
 

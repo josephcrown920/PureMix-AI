@@ -29,6 +29,8 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      "openai",
+      "@anthropic-ai/sdk",
       "sharp",
       "better-sqlite3",
       "sqlite3",
@@ -119,10 +121,14 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     },
   });
 
-  // Copy Python audio processing script into dist (same level as index.mjs)
+  // Copy Python audio processing scripts into dist (same level as index.mjs)
   await copyFile(
     path.resolve(artifactDir, "src/lib/audioMastering.py"),
     path.resolve(distDir, "audioMastering.py"),
+  );
+  await copyFile(
+    path.resolve(artifactDir, "src/lib/audioAnalysis.py"),
+    path.resolve(distDir, "audioAnalysis.py"),
   );
 }
 

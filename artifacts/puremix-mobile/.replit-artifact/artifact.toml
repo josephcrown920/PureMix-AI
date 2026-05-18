@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/puremix-mobile/"
+title = "Puremix.ai Mobile"
+version = "1.0.0"
+id = "artifacts/puremix-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/puremix-mobile/" ]
+localPort = 21294
+
+[services.development]
+run = "pnpm --filter @workspace/puremix-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/puremix-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/puremix-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "21294"
+BASE_PATH = "/puremix-mobile/"
