@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -78,6 +78,7 @@ export default function StudioScreen() {
   const router = useRouter();
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [referenceTrack, setReferenceTrack] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState("afrobeats");
   const [variations, setVariations] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -91,6 +92,11 @@ export default function StudioScreen() {
   const handlePickFile = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedFile("my_track_session.wav");
+  };
+
+  const handlePickReference = async () => {
+    await Haptics.selectionAsync();
+    setReferenceTrack(referenceTrack ? null : "burnaboy_lastlast.mp3");
   };
 
   const handleMaster = async () => {
@@ -161,6 +167,7 @@ export default function StudioScreen() {
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
             AI MASTERING STUDIO
           </Text>
+          <CrazyLines primary={colors.primary} accent={colors.accent} />
         </View>
 
         {/* Upload Drop Zone */}
@@ -264,6 +271,44 @@ export default function StudioScreen() {
           })}
         </ScrollView>
 
+        {/* Reference Track Row */}
+        <TouchableOpacity
+          onPress={handlePickReference}
+          activeOpacity={0.8}
+          style={[
+            styles.variationsRow,
+            {
+              backgroundColor: referenceTrack ? `${colors.primary}10` : colors.card,
+              borderColor: referenceTrack ? colors.primary : colors.border,
+            },
+          ]}
+        >
+          <View style={styles.variationsLeft}>
+            <View style={[styles.variationsIconWrap, { backgroundColor: `${colors.primary}18` }]}>
+              <Feather name="music" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.variationsTitle, { color: colors.foreground }]}>
+                Reference Track
+                <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>  · optional</Text>
+              </Text>
+              <Text
+                style={[styles.variationsSubtitle, { color: referenceTrack ? colors.primary : colors.mutedForeground }]}
+                numberOfLines={1}
+              >
+                {referenceTrack ?? "Match a song you love — Matchering AI"}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.refBtn, { borderColor: referenceTrack ? colors.primary : colors.border }]}>
+            <Feather
+              name={referenceTrack ? "x" : "upload"}
+              size={13}
+              color={referenceTrack ? colors.primary : colors.mutedForeground}
+            />
+          </View>
+        </TouchableOpacity>
+
         {/* AI Variations Row */}
         <TouchableOpacity
           onPress={async () => {
@@ -347,6 +392,57 @@ export default function StudioScreen() {
   );
 }
 
+function CrazyLines({ primary, accent }: { primary: string; accent: string }) {
+  const BAR_COUNT = 48;
+  const anims = useRef(
+    Array.from({ length: BAR_COUNT }, () => new Animated.Value(Math.random()))
+  ).current;
+
+  useEffect(() => {
+    const loops = anims.map((a, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(a, {
+            toValue: Math.random(),
+            duration: 600 + (i % 6) * 90,
+            delay: (i * 35) % 400,
+            useNativeDriver: false,
+          }),
+          Animated.timing(a, {
+            toValue: Math.random(),
+            duration: 700 + (i % 5) * 100,
+            useNativeDriver: false,
+          }),
+        ])
+      )
+    );
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [anims]);
+
+  return (
+    <View style={styles.crazyLines}>
+      {anims.map((a, i) => {
+        const h = a.interpolate({ inputRange: [0, 1], outputRange: [3, 22] });
+        const isAccent = i % 5 === 0;
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              width: 2.5,
+              height: h,
+              borderRadius: 1.5,
+              marginHorizontal: 1.5,
+              backgroundColor: isAccent ? accent : primary,
+              opacity: 0.55 + (i % 4) * 0.12,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 function WaveformBars({ color, small = false }: { color: string; small?: boolean }) {
   const bars = small
     ? [10, 16, 12, 20, 14, 18, 10]
@@ -374,6 +470,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 20 },
   header: { alignItems: "center", marginBottom: 24 },
+  crazyLines: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 26,
+    marginTop: 10,
+    justifyContent: "center",
+  },
   wordmark: { fontSize: 26, fontFamily: "Inter_700Bold", letterSpacing: 3 },
   tagline: { fontSize: 9, fontFamily: "Inter_500Medium", letterSpacing: 3, marginTop: 3 },
   uploadZone: {
@@ -451,6 +554,14 @@ const styles = StyleSheet.create({
   variationsIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   variationsTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   variationsSubtitle: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  refBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", padding: 2 },
   toggleKnob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
   processingBox: {

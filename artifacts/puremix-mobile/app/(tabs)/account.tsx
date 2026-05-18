@@ -14,7 +14,6 @@ import * as Haptics from "expo-haptics";
 
 import { useColors } from "@/hooks/useColors";
 
-const PLAN_LABEL = "Pro";
 const CREDITS = 8;
 const TOTAL_MASTERS = 23;
 const AVG_LUFS_IMPROVEMENT = "+9.4";
@@ -61,7 +60,7 @@ export default function AccountScreen() {
           </View>
           <View style={[styles.planBadge, { backgroundColor: `${colors.primary}20`, borderColor: colors.primary }]}>
             <Feather name="zap" size={11} color={colors.primary} />
-            <Text style={[styles.planBadgeText, { color: colors.primary }]}>{PLAN_LABEL}</Text>
+            <Text style={[styles.planBadgeText, { color: colors.primary }]}>{CREDITS} credits</Text>
           </View>
         </View>
 
@@ -87,9 +86,9 @@ export default function AccountScreen() {
           />
         </View>
 
-        {/* Plan Card */}
+        {/* Credits Card */}
         <View style={styles.sectionTitle}>
-          <Text style={[styles.sectionTitleText, { color: colors.mutedForeground }]}>PLAN</Text>
+          <Text style={[styles.sectionTitleText, { color: colors.mutedForeground }]}>CREDITS</Text>
         </View>
         <LinearGradient
           colors={["#1a0f35", "#0f0b1a"]}
@@ -99,14 +98,14 @@ export default function AccountScreen() {
         >
           <View style={styles.planCardTop}>
             <View>
-              <Text style={[styles.planName, { color: colors.foreground }]}>Pro Plan</Text>
+              <Text style={[styles.planName, { color: colors.foreground }]}>Master Credits</Text>
               <Text style={[styles.planDesc, { color: colors.mutedForeground }]}>
-                {CREDITS} master credits remaining
+                1 credit = 1 fully mastered track
               </Text>
             </View>
             <View style={[styles.creditsBadge, { backgroundColor: `${colors.primary}25` }]}>
               <Text style={[styles.creditsBadgeNum, { color: colors.primary }]}>{CREDITS}</Text>
-              <Text style={[styles.creditsBadgeLabel, { color: colors.mutedForeground }]}>credits</Text>
+              <Text style={[styles.creditsBadgeLabel, { color: colors.mutedForeground }]}>left</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -114,9 +113,9 @@ export default function AccountScreen() {
             activeOpacity={0.85}
             style={[styles.upgradeBtn, { borderColor: colors.primary }]}
           >
-            <Feather name="zap" size={13} color={colors.primary} />
+            <Feather name="plus" size={13} color={colors.primary} />
             <Text style={[styles.upgradeBtnText, { color: colors.primary }]}>
-              Buy More Credits
+              Add Credits
             </Text>
           </TouchableOpacity>
         </LinearGradient>
