@@ -21,7 +21,7 @@
     "express": "^5",
     "express-rate-limit": "^8.5.1",
     "http-proxy-middleware": "^3.0.7",
-    "multer": "^2.2.0",
+    "multer": "^2.4.0",
     "openai": "^6.36.0",
     "pino": "^9",
     "pino-http": "^10",
