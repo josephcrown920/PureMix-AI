@@ -316,9 +316,9 @@ function runPythonScript(
 
     proc.on("close", (code) => {
       if (stdoutBuf.length > 0) handleLine(stdoutBuf);
-      if (code === 0 && !errorOutput && !("input_lufs" in result || "output_lufs" in result || "variants" in result)) {
+      if (code === 0 && !("input_lufs" in result || "output_lufs" in result || "variants" in result)) {
         reject(new Error("Mastering script exited without a result manifest"));
-      } else if (code === 0 && !errorOutput) {
+      } else if (code === 0) {
         resolve(result);
       } else {
         reject(new Error(errorOutput || `Python process exited with code ${code}`));
