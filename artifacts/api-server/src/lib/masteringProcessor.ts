@@ -123,7 +123,7 @@ export async function processMasteringJob(jobId: number, referencePath: string |
 
     // --- Phase 2: Mastering ---
     const baseName = job.filename.replace(/\.[^.]+$/, "");
-    const outputFilename = `mastered_${baseName}.wav`;
+    const outputFilename = `mastered_${job.id}_${baseName}.wav`;
     const outputDir = path.join(__dirname, "..", "..", "uploads", "output");
     const outputPath = path.join(outputDir, outputFilename);
 
@@ -186,6 +186,7 @@ export async function processMasteringJob(jobId: number, referencePath: string |
       }
     }
 
+    if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) throw new Error("Mastering produced no usable output file");
     logger.info({ jobId, elapsedMs: elapsed }, "Mastering completed");
 
     await db
