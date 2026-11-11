@@ -15,6 +15,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { PageTransition } from "@/components/PageTransition";
 import { UploadPage } from "@/pages/upload";
+import { WorkstationPage } from "@/pages/workstation";
 import { LyricsAgentPage } from "@/pages/lyrics-agent";
 import { JobPage } from "@/pages/job";
 import { HistoryPage } from "@/pages/history";
@@ -200,6 +201,7 @@ function AnimatedRoutes() {
           </Route>
           <Route path="/billing/return" component={() => <Protected component={BillingReturnPage} />} />
           <Route path="/studio" component={() => <Protected component={UploadPage} />} />
+          <Route path="/workstation" component={() => <Protected component={WorkstationPage} />} />
           <Route path="/lyrics-agent" component={() => <Protected component={LyricsAgentPage} />} />
           <Route path="/jobs/:id" component={() => <Protected component={JobPage} />} />
           <Route path="/history" component={() => <Protected component={HistoryPage} />} />
